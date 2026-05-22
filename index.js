@@ -9,7 +9,22 @@ const {
 
 const fs = require('fs');
 
-const config = require('./config.json');
+const config = {
+    token: process.env.TOKEN,
+
+    clientId: "122107837739433984",
+    guildId: "1507287568440627261",
+
+    allowedRoles: [
+        "Président",
+        "Vice-président",
+        "Sergent d'armes",
+        "Trésorier",
+        "Secrétaire"
+    ],
+
+    logChannelName: "📦・│stockage"
+};
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
@@ -17,12 +32,12 @@ const client = new Client({
 
 let stocks = {};
 
-if (fs.existsSync('./stocks.json')) {
-    stocks = JSON.parse(fs.readFileSync('./stocks.json'));
+if (fs.existsSync('./stock.json')) {
+    stocks = JSON.parse(fs.readFileSync('./stock.json'));
 }
 
 function saveStocks() {
-    fs.writeFileSync('./stocks.json', JSON.stringify(stocks, null, 2));
+    fs.writeFileSync('./stock.json', JSON.stringify(stocks, null, 2));
 }
 
 const commands = [
@@ -53,18 +68,24 @@ const commands = [
     new SlashCommandBuilder()
         .setName('stock')
         .setDescription('Voir les stocks')
+
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(config.token);
 
 (async () => {
     try {
+
         await rest.put(
-            Routes.applicationGuildCommands(config.clientId, config.guildId),
+            Routes.applicationGuildCommands(
+                config.clientId,
+                config.guildId
+            ),
             { body: commands }
         );
 
         console.log('Commandes enregistrées.');
+
     } catch (error) {
         console.error(error);
     }
@@ -75,10 +96,11 @@ client.once('ready', () => {
 });
 
 client.on('interactionCreate', async interaction => {
+
     if (!interaction.isChatInputCommand()) return;
 
-    const role = interaction.member.roles.cache.find(
-        r => r.name === config.allowedRole
+    const hasPermission = interaction.member.roles.cache.some(
+        r => config.allowedRoles.includes(r.name)
     );
 
     const logsChannel = interaction.guild.channels.cache.find(
@@ -86,9 +108,11 @@ client.on('interactionCreate', async interaction => {
     );
 
     if (
-        (interaction.commandName === 'ajouter' ||
-         interaction.commandName === 'retirer') &&
-        !role
+        (
+            interaction.commandName === 'ajouter' ||
+            interaction.commandName === 'retirer'
+        ) &&
+        !hasPermission
     ) {
         return interaction.reply({
             content: '❌ Tu n’as pas la permission.',
@@ -96,12 +120,16 @@ client.on('interactionCreate', async interaction => {
         });
     }
 
+    // AJOUTER
+
     if (interaction.commandName === 'ajouter') {
 
         const objet = interaction.options.getString('objet');
         const quantite = interaction.options.getInteger('quantite');
 
-        if (!stocks[objet]) stocks[objet] = 0;
+        if (!stocks[objet]) {
+            stocks[objet] = 0;
+        }
 
         stocks[objet] += quantite;
 
@@ -109,10 +137,14 @@ client.on('interactionCreate', async interaction => {
 
         const embed = new EmbedBuilder()
             .setTitle('📦 Stock ajouté')
-            .setDescription(`${quantite} ${objet} ajouté(s).`)
+            .setDescription(
+                `✅ ${quantite} ${objet} ajouté(s).\n\nStock actuel : ${stocks[objet]}`
+            )
             .setColor('Green');
 
-        interaction.reply({ embeds: [embed] });
+        await interaction.reply({
+            embeds: [embed]
+        });
 
         if (logsChannel) {
             logsChannel.send(
@@ -121,12 +153,16 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
+    // RETIRER
+
     if (interaction.commandName === 'retirer') {
 
         const objet = interaction.options.getString('objet');
         const quantite = interaction.options.getInteger('quantite');
 
-        if (!stocks[objet]) stocks[objet] = 0;
+        if (!stocks[objet]) {
+            stocks[objet] = 0;
+        }
 
         stocks[objet] -= quantite;
 
@@ -138,10 +174,14 @@ client.on('interactionCreate', async interaction => {
 
         const embed = new EmbedBuilder()
             .setTitle('📦 Stock retiré')
-            .setDescription(`${quantite} ${objet} retiré(s).`)
+            .setDescription(
+                `❌ ${quantite} ${objet} retiré(s).\n\nStock actuel : ${stocks[objet]}`
+            )
             .setColor('Red');
 
-        interaction.reply({ embeds: [embed] });
+        await interaction.reply({
+            embeds: [embed]
+        });
 
         if (logsChannel) {
             logsChannel.send(
@@ -150,24 +190,31 @@ client.on('interactionCreate', async interaction => {
         }
     }
 
+    // STOCK
+
     if (interaction.commandName === 'stock') {
 
         let description = '';
 
         for (const item in stocks) {
-            description += `**${item}** : ${stocks[item]}\n`;
+            description += `📦 **${item}** : ${stocks[item]}\n`;
         }
 
         if (description === '') {
-            description = 'Aucun stock.';
+            description = 'Aucun stock enregistré.';
         }
 
         const embed = new EmbedBuilder()
             .setTitle('📦 Inventaire')
             .setDescription(description)
-            .setColor('Blue');
+            .setColor('Blue')
+            .setFooter({
+                text: 'Hells Legion Inventory'
+            });
 
-        interaction.reply({ embeds: [embed] });
+        await interaction.reply({
+            embeds: [embed]
+        });
     }
 });
 
