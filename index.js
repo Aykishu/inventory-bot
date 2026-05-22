@@ -8,7 +8,10 @@ const {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    StringSelectMenuBuilder
+    StringSelectMenuBuilder,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle
 } = require('discord.js');
 
 const Database = require('better-sqlite3');
@@ -82,55 +85,11 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('inventaire')
-        .setDescription('Ouvrir le panel inventaire'),
-
-    new SlashCommandBuilder()
-        .setName('ajouter')
-        .setDescription('Ajouter un item')
-        .addStringOption(option =>
-            option.setName('objet')
-                .setDescription('Nom de l’objet')
-                .setRequired(true))
-        .addIntegerOption(option =>
-            option.setName('quantite')
-                .setDescription('Quantité')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('categorie')
-                .setDescription('Catégorie')
-                .setRequired(true)
-                .addChoices(
-                    { name: '🔨 Ressources', value: 'ressources' },
-                    { name: '💊 Médical', value: 'medical' },
-                    { name: '🔫 Armurerie', value: 'armes' },
-                    { name: '🚗 Véhicules', value: 'vehicules' },
-                    { name: '🍔 Nourriture', value: 'nourriture' },
-                    { name: '📦 Divers', value: 'divers' }
-                )),
-
-    new SlashCommandBuilder()
-        .setName('retirer')
-        .setDescription('Retirer un item')
-        .addStringOption(option =>
-            option.setName('objet')
-                .setDescription('Nom de l’objet')
-                .setRequired(true))
-        .addIntegerOption(option =>
-            option.setName('quantite')
-                .setDescription('Quantité')
-                .setRequired(true)),
-
-    new SlashCommandBuilder()
-        .setName('supprimeritem')
-        .setDescription('Supprimer un item')
-        .addStringOption(option =>
-            option.setName('objet')
-                .setDescription('Nom de l’objet')
-                .setRequired(true))
+        .setDescription('Ouvrir le panel inventaire')
 
 ].map(command => command.toJSON());
 
-// ================= REGISTER COMMANDS =================
+// ================= REGISTER =================
 
 const rest = new REST({ version: '10' }).setToken(config.token);
 
@@ -220,7 +179,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V4'
+            text: 'Inventory System V5'
         });
 
 }
@@ -267,7 +226,13 @@ function createButtons() {
                     .setCustomId('delete_stock')
                     .setLabel('Supprimer')
                     .setEmoji('🗑️')
-                    .setStyle(ButtonStyle.Secondary)
+                    .setStyle(ButtonStyle.Secondary),
+
+                new ButtonBuilder()
+                    .setCustomId('search_stock')
+                    .setLabel('Rechercher')
+                    .setEmoji('🔍')
+                    .setStyle(ButtonStyle.Primary)
 
             )
 
@@ -330,8 +295,6 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.isChatInputCommand()) {
 
-        // INVENTAIRE
-
         if (interaction.commandName === 'inventaire') {
 
             return interaction.reply({
@@ -344,22 +307,244 @@ client.on('interactionCreate', async interaction => {
 
         }
 
-        // AJOUTER
+    }
 
-        if (interaction.commandName === 'ajouter') {
+    // ================= BOUTONS =================
 
-            if (!hasPermission(interaction)) {
+    if (interaction.isButton()) {
+
+        // ================= VOIR STOCK =================
+
+        if (interaction.customId === 'view_stock') {
+
+            const rows = db.prepare(`
+                SELECT * FROM stocks
+                ORDER BY category ASC, item ASC
+            `).all();
+
+            if (rows.length === 0) {
 
                 return interaction.reply({
-                    content: '❌ Permission refusée.',
+                    content: '📦 Aucun stock enregistré.',
                     ephemeral: true
                 });
 
             }
 
-            const objet = interaction.options.getString('objet');
-            const quantite = interaction.options.getInteger('quantite');
-            const categorie = interaction.options.getString('categorie');
+            let description = '';
+
+            rows.forEach(row => {
+
+                description += `
+${categories[row.category] || '📦'} **${row.item}**
+└ 📦 ${row.quantity}
+
+`;
+
+            });
+
+            const embed = new EmbedBuilder()
+                .setTitle('📦 STOCK COMPLET')
+                .setDescription(description)
+                .setColor('#8B0000');
+
+            return interaction.reply({
+                embeds: [embed],
+                ephemeral: true
+            });
+
+        }
+
+        // ================= REFRESH =================
+
+        if (interaction.customId === 'refresh_stock') {
+
+            return interaction.update({
+                embeds: [createMainEmbed()],
+                components: [
+                    ...createButtons(),
+                    createCategoryMenu()
+                ]
+            });
+
+        }
+
+        // ================= AJOUTER =================
+
+        if (interaction.customId === 'add_stock') {
+
+            const modal = new ModalBuilder()
+                .setCustomId('add_stock_modal')
+                .setTitle('📥 Ajouter un item');
+
+            const objetInput = new TextInputBuilder()
+                .setCustomId('objet')
+                .setLabel('Nom de l’objet')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            const quantiteInput = new TextInputBuilder()
+                .setCustomId('quantite')
+                .setLabel('Quantité')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            const categorieInput = new TextInputBuilder()
+                .setCustomId('categorie')
+                .setLabel('Catégorie')
+                .setPlaceholder('ressources / medical / armes...')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(objetInput),
+                new ActionRowBuilder().addComponents(quantiteInput),
+                new ActionRowBuilder().addComponents(categorieInput)
+            );
+
+            return await interaction.showModal(modal);
+
+        }
+
+        // ================= RETIRER =================
+
+        if (interaction.customId === 'remove_stock') {
+
+            const modal = new ModalBuilder()
+                .setCustomId('remove_stock_modal')
+                .setTitle('📤 Retirer un item');
+
+            const objetInput = new TextInputBuilder()
+                .setCustomId('objet')
+                .setLabel('Nom de l’objet')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            const quantiteInput = new TextInputBuilder()
+                .setCustomId('quantite')
+                .setLabel('Quantité')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(objetInput),
+                new ActionRowBuilder().addComponents(quantiteInput)
+            );
+
+            return await interaction.showModal(modal);
+
+        }
+
+        // ================= SUPPRIMER =================
+
+        if (interaction.customId === 'delete_stock') {
+
+            const modal = new ModalBuilder()
+                .setCustomId('delete_stock_modal')
+                .setTitle('🗑️ Supprimer un item');
+
+            const objetInput = new TextInputBuilder()
+                .setCustomId('objet')
+                .setLabel('Nom de l’objet')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(objetInput)
+            );
+
+            return await interaction.showModal(modal);
+
+        }
+
+        // ================= RECHERCHER =================
+
+        if (interaction.customId === 'search_stock') {
+
+            const modal = new ModalBuilder()
+                .setCustomId('search_stock_modal')
+                .setTitle('🔍 Rechercher un item');
+
+            const objetInput = new TextInputBuilder()
+                .setCustomId('objet')
+                .setLabel('Nom de l’objet')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(objetInput)
+            );
+
+            return await interaction.showModal(modal);
+
+        }
+
+    }
+
+    // ================= MENU CATEGORIES =================
+
+    if (interaction.isStringSelectMenu()) {
+
+        if (interaction.customId === 'category_select') {
+
+            const category = interaction.values[0];
+
+            const rows = db.prepare(`
+                SELECT * FROM stocks
+                WHERE category = ?
+                ORDER BY item ASC
+            `).all(category);
+
+            let description = '';
+
+            if (rows.length === 0) {
+
+                description = '📦 Aucun item dans cette catégorie.';
+
+            } else {
+
+                rows.forEach(row => {
+
+                    description += `
+📦 **${row.item}**
+└ Quantité : ${row.quantity}
+
+`;
+
+                });
+
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle(`${categories[category]}`)
+                .setDescription(description)
+                .setColor('#8B0000');
+
+            return interaction.reply({
+                embeds: [embed],
+                ephemeral: true
+            });
+
+        }
+
+    }
+
+    // ================= MODALS =================
+
+    if (interaction.isModalSubmit()) {
+
+        // ================= AJOUTER =================
+
+        if (interaction.customId === 'add_stock_modal') {
+
+            const objet = interaction.fields.getTextInputValue('objet');
+            const quantite = parseInt(
+                interaction.fields.getTextInputValue('quantite')
+            );
+
+            const categorie = interaction.fields
+                .getTextInputValue('categorie')
+                .toLowerCase();
 
             const item = db.prepare(
                 `SELECT * FROM stocks WHERE item = ?`
@@ -387,7 +572,7 @@ client.on('interactionCreate', async interaction => {
                 .setDescription(`
 📦 Item : **${objet}**
 ➕ Quantité : **${quantite}**
-📂 Catégorie : **${categories[categorie]}**
+📂 Catégorie : **${categorie}**
 `)
                 .setColor('Green');
 
@@ -402,21 +587,14 @@ client.on('interactionCreate', async interaction => {
 
         }
 
-        // RETIRER
+        // ================= RETIRER =================
 
-        if (interaction.commandName === 'retirer') {
+        if (interaction.customId === 'remove_stock_modal') {
 
-            if (!hasPermission(interaction)) {
-
-                return interaction.reply({
-                    content: '❌ Permission refusée.',
-                    ephemeral: true
-                });
-
-            }
-
-            const objet = interaction.options.getString('objet');
-            const quantite = interaction.options.getInteger('quantite');
+            const objet = interaction.fields.getTextInputValue('objet');
+            const quantite = parseInt(
+                interaction.fields.getTextInputValue('quantite')
+            );
 
             const item = db.prepare(
                 `SELECT * FROM stocks WHERE item = ?`
@@ -463,20 +641,11 @@ client.on('interactionCreate', async interaction => {
 
         }
 
-        // SUPPRIMER ITEM
+        // ================= SUPPRIMER =================
 
-        if (interaction.commandName === 'supprimeritem') {
+        if (interaction.customId === 'delete_stock_modal') {
 
-            if (!hasPermission(interaction)) {
-
-                return interaction.reply({
-                    content: '❌ Permission refusée.',
-                    ephemeral: true
-                });
-
-            }
-
-            const objet = interaction.options.getString('objet');
+            const objet = interaction.fields.getTextInputValue('objet');
 
             db.prepare(`
                 DELETE FROM stocks
@@ -492,154 +661,43 @@ client.on('interactionCreate', async interaction => {
                 embeds: [embed]
             });
 
+            sendLog(
+                interaction,
+                `🗑️ ${interaction.user.username} a supprimé ${objet}`
+            );
+
         }
 
-    }
+        // ================= RECHERCHE =================
 
-    // ================= BOUTONS =================
+        if (interaction.customId === 'search_stock_modal') {
 
-    if (interaction.isButton()) {
+            const objet = interaction.fields.getTextInputValue('objet');
 
-        // VOIR STOCK
-
-        if (interaction.customId === 'view_stock') {
-
-            const rows = db.prepare(`
+            const item = db.prepare(`
                 SELECT * FROM stocks
-                ORDER BY category ASC, item ASC
-            `).all();
+                WHERE item LIKE ?
+            `).get(`%${objet}%`);
 
-            if (rows.length === 0) {
+            if (!item) {
 
                 return interaction.reply({
-                    content: '📦 Aucun stock enregistré.',
+                    content: '❌ Aucun item trouvé.',
                     ephemeral: true
                 });
 
             }
 
-            let description = '';
-
-            rows.forEach(row => {
-
-                description += `
-${categories[row.category] || '📦'} **${row.item}**
-└ 📦 ${row.quantity}
-
-`;
-
-            });
-
             const embed = new EmbedBuilder()
-                .setTitle('📦 STOCK COMPLET')
-                .setDescription(description)
-                .setColor('#8B0000');
+                .setTitle('🔍 ITEM TROUVÉ')
+                .setDescription(`
+📦 Item : **${item.item}**
+📊 Quantité : **${item.quantity}**
+📂 Catégorie : **${categories[item.category]}**
+`)
+                .setColor('Blue');
 
-            return interaction.reply({
-                embeds: [embed],
-                ephemeral: true
-            });
-
-        }
-
-        // ACTUALISER
-
-        if (interaction.customId === 'refresh_stock') {
-
-            return interaction.update({
-                embeds: [createMainEmbed()],
-                components: [
-                    ...createButtons(),
-                    createCategoryMenu()
-                ]
-            });
-
-        }
-
-        // AJOUTER
-
-        if (interaction.customId === 'add_stock') {
-
-            return interaction.reply({
-                content:
-`📥 Utilise :
-
-/ajouter`,
-                ephemeral: true
-            });
-
-        }
-
-        // RETIRER
-
-        if (interaction.customId === 'remove_stock') {
-
-            return interaction.reply({
-                content:
-`📤 Utilise :
-
-/retirer`,
-                ephemeral: true
-            });
-
-        }
-
-        // SUPPRIMER
-
-        if (interaction.customId === 'delete_stock') {
-
-            return interaction.reply({
-                content:
-`🗑️ Utilise :
-
-/supprimeritem`,
-                ephemeral: true
-            });
-
-        }
-
-    }
-
-    // ================= MENU CATEGORIES =================
-
-    if (interaction.isStringSelectMenu()) {
-
-        if (interaction.customId === 'category_select') {
-
-            const category = interaction.values[0];
-
-            const rows = db.prepare(`
-                SELECT * FROM stocks
-                WHERE category = ?
-                ORDER BY item ASC
-            `).all(category);
-
-            let description = '';
-
-            if (rows.length === 0) {
-
-                description = '📦 Aucun item dans cette catégorie.';
-
-            } else {
-
-                rows.forEach(row => {
-
-                    description += `
-📦 **${row.item}**
-└ Quantité : ${row.quantity}
-
-`;
-
-                });
-
-            }
-
-            const embed = new EmbedBuilder()
-                .setTitle(`${categories[category]}`)
-                .setDescription(description)
-                .setColor('#8B0000');
-
-            return interaction.reply({
+            interaction.reply({
                 embeds: [embed],
                 ephemeral: true
             });
