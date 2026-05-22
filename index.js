@@ -79,6 +79,10 @@ const categories = {
     divers: "📦 Divers"
 };
 
+// ================= TEMP STORAGE =================
+
+const pendingAdds = new Map();
+
 // ================= COMMANDES =================
 
 const commands = [
@@ -179,7 +183,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V5'
+            text: 'Inventory System V6'
         });
 
 }
@@ -287,6 +291,53 @@ function createCategoryMenu() {
 
 }
 
+// ================= CATEGORY MENU FOR ADD =================
+
+function createAddCategoryMenu() {
+
+    return new ActionRowBuilder()
+        .addComponents(
+
+            new StringSelectMenuBuilder()
+                .setCustomId('add_category_select')
+                .setPlaceholder('📂 Choisir une catégorie')
+                .addOptions([
+                    {
+                        label: 'Ressources',
+                        value: 'ressources',
+                        emoji: '🔨'
+                    },
+                    {
+                        label: 'Médical',
+                        value: 'medical',
+                        emoji: '💊'
+                    },
+                    {
+                        label: 'Armurerie',
+                        value: 'armes',
+                        emoji: '🔫'
+                    },
+                    {
+                        label: 'Véhicules',
+                        value: 'vehicules',
+                        emoji: '🚗'
+                    },
+                    {
+                        label: 'Nourriture',
+                        value: 'nourriture',
+                        emoji: '🍔'
+                    },
+                    {
+                        label: 'Divers',
+                        value: 'divers',
+                        emoji: '📦'
+                    }
+                ])
+
+        );
+
+}
+
 // ================= INTERACTIONS =================
 
 client.on('interactionCreate', async interaction => {
@@ -309,11 +360,11 @@ client.on('interactionCreate', async interaction => {
 
     }
 
-    // ================= BOUTONS =================
+    // ================= BUTTONS =================
 
     if (interaction.isButton()) {
 
-        // ================= VOIR STOCK =================
+        // VIEW STOCK
 
         if (interaction.customId === 'view_stock') {
 
@@ -355,7 +406,7 @@ ${categories[row.category] || '📦'} **${row.item}**
 
         }
 
-        // ================= REFRESH =================
+        // REFRESH
 
         if (interaction.customId === 'refresh_stock') {
 
@@ -369,7 +420,7 @@ ${categories[row.category] || '📦'} **${row.item}**
 
         }
 
-        // ================= AJOUTER =================
+        // ADD
 
         if (interaction.customId === 'add_stock') {
 
@@ -389,24 +440,16 @@ ${categories[row.category] || '📦'} **${row.item}**
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
 
-            const categorieInput = new TextInputBuilder()
-                .setCustomId('categorie')
-                .setLabel('Catégorie')
-                .setPlaceholder('ressources / medical / armes...')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
             modal.addComponents(
                 new ActionRowBuilder().addComponents(objetInput),
-                new ActionRowBuilder().addComponents(quantiteInput),
-                new ActionRowBuilder().addComponents(categorieInput)
+                new ActionRowBuilder().addComponents(quantiteInput)
             );
 
             return await interaction.showModal(modal);
 
         }
 
-        // ================= RETIRER =================
+        // REMOVE
 
         if (interaction.customId === 'remove_stock') {
 
@@ -435,7 +478,7 @@ ${categories[row.category] || '📦'} **${row.item}**
 
         }
 
-        // ================= SUPPRIMER =================
+        // DELETE
 
         if (interaction.customId === 'delete_stock') {
 
@@ -457,7 +500,7 @@ ${categories[row.category] || '📦'} **${row.item}**
 
         }
 
-        // ================= RECHERCHER =================
+        // SEARCH
 
         if (interaction.customId === 'search_stock') {
 
@@ -481,9 +524,162 @@ ${categories[row.category] || '📦'} **${row.item}**
 
     }
 
-    // ================= MENU CATEGORIES =================
+    // ================= MODALS =================
+
+    if (interaction.isModalSubmit()) {
+
+        // ADD STOCK MODAL
+
+        if (interaction.customId === 'add_stock_modal') {
+
+            const objet = interaction.fields.getTextInputValue('objet');
+
+            const quantite = parseInt(
+                interaction.fields.getTextInputValue('quantite')
+            );
+
+            pendingAdds.set(interaction.user.id, {
+                objet,
+                quantite
+            });
+
+            return interaction.reply({
+                content: '📂 Choisis une catégorie :',
+                components: [
+                    createAddCategoryMenu()
+                ],
+                ephemeral: true
+            });
+
+        }
+
+        // REMOVE STOCK MODAL
+
+        if (interaction.customId === 'remove_stock_modal') {
+
+            const objet = interaction.fields.getTextInputValue('objet');
+
+            const quantite = parseInt(
+                interaction.fields.getTextInputValue('quantite')
+            );
+
+            const item = db.prepare(`
+                SELECT * FROM stocks
+                WHERE item = ?
+            `).get(objet);
+
+            if (!item) {
+
+                return interaction.reply({
+                    content: '❌ Item introuvable.',
+                    ephemeral: true
+                });
+
+            }
+
+            let newQuantity = item.quantity - quantite;
+
+            if (newQuantity < 0) {
+                newQuantity = 0;
+            }
+
+            db.prepare(`
+                UPDATE stocks
+                SET quantity = ?
+                WHERE item = ?
+            `).run(newQuantity, objet);
+
+            const embed = new EmbedBuilder()
+                .setTitle('📤 STOCK RETIRÉ')
+                .setDescription(`
+👤 Membre : ${interaction.user}
+
+📦 Item : **${objet}**
+➖ Quantité : **${quantite}**
+📉 Nouveau stock : **${newQuantity}**
+`)
+                .setColor('Red');
+
+            interaction.reply({
+                embeds: [embed]
+            });
+
+            sendLog(
+                interaction,
+                `📤 ${interaction.user.username} a retiré ${quantite} ${objet}`
+            );
+
+        }
+
+        // DELETE STOCK MODAL
+
+        if (interaction.customId === 'delete_stock_modal') {
+
+            const objet = interaction.fields.getTextInputValue('objet');
+
+            db.prepare(`
+                DELETE FROM stocks
+                WHERE item = ?
+            `).run(objet);
+
+            const embed = new EmbedBuilder()
+                .setTitle('🗑️ ITEM SUPPRIMÉ')
+                .setDescription(`
+👤 Membre : ${interaction.user}
+
+📦 ${objet} supprimé du stock.
+`)
+                .setColor('DarkRed');
+
+            interaction.reply({
+                embeds: [embed]
+            });
+
+        }
+
+        // SEARCH STOCK MODAL
+
+        if (interaction.customId === 'search_stock_modal') {
+
+            const objet = interaction.fields.getTextInputValue('objet');
+
+            const item = db.prepare(`
+                SELECT * FROM stocks
+                WHERE item LIKE ?
+            `).get(`%${objet}%`);
+
+            if (!item) {
+
+                return interaction.reply({
+                    content: '❌ Aucun item trouvé.',
+                    ephemeral: true
+                });
+
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('🔍 ITEM TROUVÉ')
+                .setDescription(`
+📦 Item : **${item.item}**
+📊 Quantité : **${item.quantity}**
+📂 Catégorie : **${categories[item.category]}**
+`)
+                .setColor('Blue');
+
+            interaction.reply({
+                embeds: [embed],
+                ephemeral: true
+            });
+
+        }
+
+    }
+
+    // ================= CATEGORY MENUS =================
 
     if (interaction.isStringSelectMenu()) {
+
+        // VIEW CATEGORY
 
         if (interaction.customId === 'category_select') {
 
@@ -527,28 +723,27 @@ ${categories[row.category] || '📦'} **${row.item}**
 
         }
 
-    }
+        // ADD CATEGORY SELECT
 
-    // ================= MODALS =================
+        if (interaction.customId === 'add_category_select') {
 
-    if (interaction.isModalSubmit()) {
+            const category = interaction.values[0];
 
-        // ================= AJOUTER =================
+            const pending = pendingAdds.get(interaction.user.id);
 
-        if (interaction.customId === 'add_stock_modal') {
+            if (!pending) {
 
-            const objet = interaction.fields.getTextInputValue('objet');
-            const quantite = parseInt(
-                interaction.fields.getTextInputValue('quantite')
-            );
+                return interaction.reply({
+                    content: '❌ Données expirées.',
+                    ephemeral: true
+                });
 
-            const categorie = interaction.fields
-                .getTextInputValue('categorie')
-                .toLowerCase();
+            }
 
-            const item = db.prepare(
-                `SELECT * FROM stocks WHERE item = ?`
-            ).get(objet);
+            const item = db.prepare(`
+                SELECT * FROM stocks
+                WHERE item = ?
+            `).get(pending.objet);
 
             if (item) {
 
@@ -556,23 +751,31 @@ ${categories[row.category] || '📦'} **${row.item}**
                     UPDATE stocks
                     SET quantity = ?
                     WHERE item = ?
-                `).run(item.quantity + quantite, objet);
+                `).run(item.quantity + pending.quantite, pending.objet);
 
             } else {
 
                 db.prepare(`
                     INSERT INTO stocks(item, quantity, category)
                     VALUES(?, ?, ?)
-                `).run(objet, quantite, categorie);
+                `).run(
+                    pending.objet,
+                    pending.quantite,
+                    category
+                );
 
             }
+
+            pendingAdds.delete(interaction.user.id);
 
             const embed = new EmbedBuilder()
                 .setTitle('📥 STOCK AJOUTÉ')
                 .setDescription(`
-📦 Item : **${objet}**
-➕ Quantité : **${quantite}**
-📂 Catégorie : **${categorie}**
+👤 Membre : ${interaction.user}
+
+📦 Item : **${pending.objet}**
+➕ Quantité : **${pending.quantite}**
+📂 Catégorie : **${categories[category]}**
 `)
                 .setColor('Green');
 
@@ -582,125 +785,8 @@ ${categories[row.category] || '📦'} **${row.item}**
 
             sendLog(
                 interaction,
-                `📥 ${interaction.user.username} a ajouté ${quantite} ${objet}`
+                `📥 ${interaction.user.username} a ajouté ${pending.quantite} ${pending.objet}`
             );
-
-        }
-
-        // ================= RETIRER =================
-
-        if (interaction.customId === 'remove_stock_modal') {
-
-            const objet = interaction.fields.getTextInputValue('objet');
-            const quantite = parseInt(
-                interaction.fields.getTextInputValue('quantite')
-            );
-
-            const item = db.prepare(
-                `SELECT * FROM stocks WHERE item = ?`
-            ).get(objet);
-
-            if (!item) {
-
-                return interaction.reply({
-                    content: '❌ Item introuvable.',
-                    ephemeral: true
-                });
-
-            }
-
-            let newQuantity = item.quantity - quantite;
-
-            if (newQuantity < 0) {
-                newQuantity = 0;
-            }
-
-            db.prepare(`
-                UPDATE stocks
-                SET quantity = ?
-                WHERE item = ?
-            `).run(newQuantity, objet);
-
-            const embed = new EmbedBuilder()
-                .setTitle('📤 STOCK RETIRÉ')
-                .setDescription(`
-📦 Item : **${objet}**
-➖ Quantité : **${quantite}**
-📉 Nouveau stock : **${newQuantity}**
-`)
-                .setColor('Red');
-
-            interaction.reply({
-                embeds: [embed]
-            });
-
-            sendLog(
-                interaction,
-                `📤 ${interaction.user.username} a retiré ${quantite} ${objet}`
-            );
-
-        }
-
-        // ================= SUPPRIMER =================
-
-        if (interaction.customId === 'delete_stock_modal') {
-
-            const objet = interaction.fields.getTextInputValue('objet');
-
-            db.prepare(`
-                DELETE FROM stocks
-                WHERE item = ?
-            `).run(objet);
-
-            const embed = new EmbedBuilder()
-                .setTitle('🗑️ ITEM SUPPRIMÉ')
-                .setDescription(`📦 ${objet} supprimé du stock.`)
-                .setColor('DarkRed');
-
-            interaction.reply({
-                embeds: [embed]
-            });
-
-            sendLog(
-                interaction,
-                `🗑️ ${interaction.user.username} a supprimé ${objet}`
-            );
-
-        }
-
-        // ================= RECHERCHE =================
-
-        if (interaction.customId === 'search_stock_modal') {
-
-            const objet = interaction.fields.getTextInputValue('objet');
-
-            const item = db.prepare(`
-                SELECT * FROM stocks
-                WHERE item LIKE ?
-            `).get(`%${objet}%`);
-
-            if (!item) {
-
-                return interaction.reply({
-                    content: '❌ Aucun item trouvé.',
-                    ephemeral: true
-                });
-
-            }
-
-            const embed = new EmbedBuilder()
-                .setTitle('🔍 ITEM TROUVÉ')
-                .setDescription(`
-📦 Item : **${item.item}**
-📊 Quantité : **${item.quantity}**
-📂 Catégorie : **${categories[item.category]}**
-`)
-                .setColor('Blue');
-
-            interaction.reply({
-                embeds: [embed],
-                ephemeral: true
-            });
 
         }
 
