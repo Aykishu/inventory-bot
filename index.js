@@ -12,8 +12,8 @@ const fs = require('fs');
 const config = {
     token: process.env.TOKEN,
 
-    clientId: "122107837739433984",
-    guildId: "1507287568440627261",
+    clientId: "1507287568440627261",
+    guildId: "1478420890051018765",
 
     allowedRoles: [
         "Président",
