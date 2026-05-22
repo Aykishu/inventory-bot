@@ -11,7 +11,8 @@ const {
     StringSelectMenuBuilder,
     ModalBuilder,
     TextInputBuilder,
-    TextInputStyle
+    TextInputStyle,
+    InteractionResponseFlags
 } = require('discord.js');
 
 const Database = require('better-sqlite3');
@@ -93,7 +94,7 @@ const commands = [
 
 ].map(command => command.toJSON());
 
-// ================= REGISTER =================
+// ================= REGISTER COMMANDS =================
 
 const rest = new REST({ version: '10' }).setToken(config.token);
 
@@ -121,7 +122,7 @@ const rest = new REST({ version: '10' }).setToken(config.token);
 
 // ================= READY =================
 
-client.once('ready', () => {
+client.once('clientReady', () => {
 
     console.log(`✅ ${client.user.tag} connecté.`);
 
@@ -155,13 +156,13 @@ function sendLog(interaction, message) {
 
 function createMainEmbed() {
 
-    const totalItems = db.prepare(
-        `SELECT COUNT(*) as count FROM stocks`
-    ).get().count;
+    const totalItems = db.prepare(`
+        SELECT COUNT(*) as count FROM stocks
+    `).get().count;
 
-    const totalQuantity = db.prepare(
-        `SELECT SUM(quantity) as total FROM stocks`
-    ).get().total || 0;
+    const totalQuantity = db.prepare(`
+        SELECT SUM(quantity) as total FROM stocks
+    `).get().total || 0;
 
     return new EmbedBuilder()
         .setTitle('📦 HELLS LEGION • INVENTAIRE')
@@ -183,12 +184,12 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V6'
+            text: 'Inventory System V7'
         });
 
 }
 
-// ================= BOUTONS =================
+// ================= BUTTONS =================
 
 function createButtons() {
 
@@ -244,62 +245,15 @@ function createButtons() {
 
 }
 
-// ================= MENU =================
+// ================= CATEGORY MENU =================
 
-function createCategoryMenu() {
-
-    return new ActionRowBuilder()
-        .addComponents(
-
-            new StringSelectMenuBuilder()
-                .setCustomId('category_select')
-                .setPlaceholder('📂 Choisir une catégorie')
-                .addOptions([
-                    {
-                        label: 'Ressources',
-                        value: 'ressources',
-                        emoji: '🔨'
-                    },
-                    {
-                        label: 'Médical',
-                        value: 'medical',
-                        emoji: '💊'
-                    },
-                    {
-                        label: 'Armurerie',
-                        value: 'armes',
-                        emoji: '🔫'
-                    },
-                    {
-                        label: 'Véhicules',
-                        value: 'vehicules',
-                        emoji: '🚗'
-                    },
-                    {
-                        label: 'Nourriture',
-                        value: 'nourriture',
-                        emoji: '🍔'
-                    },
-                    {
-                        label: 'Divers',
-                        value: 'divers',
-                        emoji: '📦'
-                    }
-                ])
-
-        );
-
-}
-
-// ================= CATEGORY MENU FOR ADD =================
-
-function createAddCategoryMenu() {
+function createCategoryMenu(customId = 'category_select') {
 
     return new ActionRowBuilder()
         .addComponents(
 
             new StringSelectMenuBuilder()
-                .setCustomId('add_category_select')
+                .setCustomId(customId)
                 .setPlaceholder('📂 Choisir une catégorie')
                 .addOptions([
                     {
@@ -342,453 +296,453 @@ function createAddCategoryMenu() {
 
 client.on('interactionCreate', async interaction => {
 
-    // ================= COMMANDES =================
+    try {
 
-    if (interaction.isChatInputCommand()) {
+        // ================= SLASH COMMAND =================
 
-        if (interaction.commandName === 'inventaire') {
+        if (interaction.isChatInputCommand()) {
 
-            return interaction.reply({
-                embeds: [createMainEmbed()],
-                components: [
-                    ...createButtons(),
-                    createCategoryMenu()
-                ]
-            });
-
-        }
-
-    }
-
-    // ================= BUTTONS =================
-
-    if (interaction.isButton()) {
-
-        // VIEW STOCK
-
-        if (interaction.customId === 'view_stock') {
-
-            const rows = db.prepare(`
-                SELECT * FROM stocks
-                ORDER BY category ASC, item ASC
-            `).all();
-
-            if (rows.length === 0) {
+            if (interaction.commandName === 'inventaire') {
 
                 return interaction.reply({
-                    content: '📦 Aucun stock enregistré.',
-                    ephemeral: true
+                    embeds: [createMainEmbed()],
+                    components: [
+                        ...createButtons(),
+                        createCategoryMenu()
+                    ]
                 });
 
             }
 
-            let description = '';
+        }
 
-            rows.forEach(row => {
+        // ================= BUTTONS =================
 
-                description += `
-${categories[row.category] || '📦'} **${row.item}**
+        if (interaction.isButton()) {
+
+            // VIEW STOCK
+
+            if (interaction.customId === 'view_stock') {
+
+                const rows = db.prepare(`
+                    SELECT * FROM stocks
+                    ORDER BY category ASC, item ASC
+                `).all();
+
+                if (rows.length === 0) {
+
+                    return interaction.reply({
+                        content: '📦 Aucun stock enregistré.',
+                        flags: InteractionResponseFlags.Ephemeral
+                    });
+
+                }
+
+                let description = '';
+
+                rows.forEach(row => {
+
+                    description += `
+${categories[row.category]} **${row.item}**
 └ 📦 ${row.quantity}
 
 `;
 
-            });
+                });
 
-            const embed = new EmbedBuilder()
-                .setTitle('📦 STOCK COMPLET')
-                .setDescription(description)
-                .setColor('#8B0000');
-
-            return interaction.reply({
-                embeds: [embed],
-                ephemeral: true
-            });
-
-        }
-
-        // REFRESH
-
-        if (interaction.customId === 'refresh_stock') {
-
-            return interaction.update({
-                embeds: [createMainEmbed()],
-                components: [
-                    ...createButtons(),
-                    createCategoryMenu()
-                ]
-            });
-
-        }
-
-        // ADD
-
-        if (interaction.customId === 'add_stock') {
-
-            const modal = new ModalBuilder()
-                .setCustomId('add_stock_modal')
-                .setTitle('📥 Ajouter un item');
-
-            const objetInput = new TextInputBuilder()
-                .setCustomId('objet')
-                .setLabel('Nom de l’objet')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
-            const quantiteInput = new TextInputBuilder()
-                .setCustomId('quantite')
-                .setLabel('Quantité')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(objetInput),
-                new ActionRowBuilder().addComponents(quantiteInput)
-            );
-
-            return await interaction.showModal(modal);
-
-        }
-
-        // REMOVE
-
-        if (interaction.customId === 'remove_stock') {
-
-            const modal = new ModalBuilder()
-                .setCustomId('remove_stock_modal')
-                .setTitle('📤 Retirer un item');
-
-            const objetInput = new TextInputBuilder()
-                .setCustomId('objet')
-                .setLabel('Nom de l’objet')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
-            const quantiteInput = new TextInputBuilder()
-                .setCustomId('quantite')
-                .setLabel('Quantité')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(objetInput),
-                new ActionRowBuilder().addComponents(quantiteInput)
-            );
-
-            return await interaction.showModal(modal);
-
-        }
-
-        // DELETE
-
-        if (interaction.customId === 'delete_stock') {
-
-            const modal = new ModalBuilder()
-                .setCustomId('delete_stock_modal')
-                .setTitle('🗑️ Supprimer un item');
-
-            const objetInput = new TextInputBuilder()
-                .setCustomId('objet')
-                .setLabel('Nom de l’objet')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(objetInput)
-            );
-
-            return await interaction.showModal(modal);
-
-        }
-
-        // SEARCH
-
-        if (interaction.customId === 'search_stock') {
-
-            const modal = new ModalBuilder()
-                .setCustomId('search_stock_modal')
-                .setTitle('🔍 Rechercher un item');
-
-            const objetInput = new TextInputBuilder()
-                .setCustomId('objet')
-                .setLabel('Nom de l’objet')
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
-
-            modal.addComponents(
-                new ActionRowBuilder().addComponents(objetInput)
-            );
-
-            return await interaction.showModal(modal);
-
-        }
-
-    }
-
-    // ================= MODALS =================
-
-    if (interaction.isModalSubmit()) {
-
-        // ADD STOCK MODAL
-
-        if (interaction.customId === 'add_stock_modal') {
-
-            const objet = interaction.fields.getTextInputValue('objet');
-
-            const quantite = parseInt(
-                interaction.fields.getTextInputValue('quantite')
-            );
-
-            pendingAdds.set(interaction.user.id, {
-                objet,
-                quantite
-            });
-
-            return interaction.reply({
-                content: '📂 Choisis une catégorie :',
-                components: [
-                    createAddCategoryMenu()
-                ],
-                ephemeral: true
-            });
-
-        }
-
-        // REMOVE STOCK MODAL
-
-        if (interaction.customId === 'remove_stock_modal') {
-
-            const objet = interaction.fields.getTextInputValue('objet');
-
-            const quantite = parseInt(
-                interaction.fields.getTextInputValue('quantite')
-            );
-
-            const item = db.prepare(`
-                SELECT * FROM stocks
-                WHERE item = ?
-            `).get(objet);
-
-            if (!item) {
+                const embed = new EmbedBuilder()
+                    .setTitle('📦 STOCK COMPLET')
+                    .setDescription(description)
+                    .setColor('#8B0000');
 
                 return interaction.reply({
-                    content: '❌ Item introuvable.',
-                    ephemeral: true
+                    embeds: [embed],
+                    flags: InteractionResponseFlags.Ephemeral
                 });
 
             }
 
-            let newQuantity = item.quantity - quantite;
+            // REFRESH
 
-            if (newQuantity < 0) {
-                newQuantity = 0;
+            if (interaction.customId === 'refresh_stock') {
+
+                return interaction.update({
+                    embeds: [createMainEmbed()],
+                    components: [
+                        ...createButtons(),
+                        createCategoryMenu()
+                    ]
+                });
+
             }
 
-            db.prepare(`
-                UPDATE stocks
-                SET quantity = ?
-                WHERE item = ?
-            `).run(newQuantity, objet);
+            // ADD
 
-            const embed = new EmbedBuilder()
-                .setTitle('📤 STOCK RETIRÉ')
-                .setDescription(`
+            if (interaction.customId === 'add_stock') {
+
+                const modal = new ModalBuilder()
+                    .setCustomId('add_stock_modal')
+                    .setTitle('📥 Ajouter un item');
+
+                const objetInput = new TextInputBuilder()
+                    .setCustomId('objet')
+                    .setLabel('Nom de l’objet')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const quantiteInput = new TextInputBuilder()
+                    .setCustomId('quantite')
+                    .setLabel('Quantité')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(objetInput),
+                    new ActionRowBuilder().addComponents(quantiteInput)
+                );
+
+                return await interaction.showModal(modal);
+
+            }
+
+            // REMOVE
+
+            if (interaction.customId === 'remove_stock') {
+
+                const modal = new ModalBuilder()
+                    .setCustomId('remove_stock_modal')
+                    .setTitle('📤 Retirer un item');
+
+                const objetInput = new TextInputBuilder()
+                    .setCustomId('objet')
+                    .setLabel('Nom de l’objet')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                const quantiteInput = new TextInputBuilder()
+                    .setCustomId('quantite')
+                    .setLabel('Quantité')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(objetInput),
+                    new ActionRowBuilder().addComponents(quantiteInput)
+                );
+
+                return await interaction.showModal(modal);
+
+            }
+
+            // DELETE
+
+            if (interaction.customId === 'delete_stock') {
+
+                const modal = new ModalBuilder()
+                    .setCustomId('delete_stock_modal')
+                    .setTitle('🗑️ Supprimer un item');
+
+                const objetInput = new TextInputBuilder()
+                    .setCustomId('objet')
+                    .setLabel('Nom de l’objet')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(objetInput)
+                );
+
+                return await interaction.showModal(modal);
+
+            }
+
+            // SEARCH
+
+            if (interaction.customId === 'search_stock') {
+
+                const modal = new ModalBuilder()
+                    .setCustomId('search_stock_modal')
+                    .setTitle('🔍 Rechercher un item');
+
+                const objetInput = new TextInputBuilder()
+                    .setCustomId('objet')
+                    .setLabel('Nom de l’objet')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true);
+
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(objetInput)
+                );
+
+                return await interaction.showModal(modal);
+
+            }
+
+        }
+
+        // ================= MODALS =================
+
+        if (interaction.isModalSubmit()) {
+
+            // ADD
+
+            if (interaction.customId === 'add_stock_modal') {
+
+                const objet = interaction.fields.getTextInputValue('objet');
+
+                const quantite = parseInt(
+                    interaction.fields.getTextInputValue('quantite')
+                );
+
+                pendingAdds.set(interaction.user.id, {
+                    objet,
+                    quantite
+                });
+
+                return interaction.reply({
+                    content: '📂 Choisis une catégorie :',
+                    components: [
+                        createCategoryMenu('add_category_select')
+                    ],
+                    flags: InteractionResponseFlags.Ephemeral
+                });
+
+            }
+
+            // REMOVE
+
+            if (interaction.customId === 'remove_stock_modal') {
+
+                const objet = interaction.fields.getTextInputValue('objet');
+
+                const quantite = parseInt(
+                    interaction.fields.getTextInputValue('quantite')
+                );
+
+                const item = db.prepare(`
+                    SELECT * FROM stocks
+                    WHERE item = ?
+                `).get(objet);
+
+                if (!item) {
+
+                    return interaction.reply({
+                        content: '❌ Item introuvable.',
+                        flags: InteractionResponseFlags.Ephemeral
+                    });
+
+                }
+
+                let newQuantity = item.quantity - quantite;
+
+                if (newQuantity < 0) {
+                    newQuantity = 0;
+                }
+
+                db.prepare(`
+                    UPDATE stocks
+                    SET quantity = ?
+                    WHERE item = ?
+                `).run(newQuantity, objet);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('📤 STOCK RETIRÉ')
+                    .setDescription(`
 👤 Membre : ${interaction.user}
 
 📦 Item : **${objet}**
 ➖ Quantité : **${quantite}**
 📉 Nouveau stock : **${newQuantity}**
 `)
-                .setColor('Red');
+                    .setColor('Red');
 
-            interaction.reply({
-                embeds: [embed]
-            });
-
-            sendLog(
-                interaction,
-                `📤 ${interaction.user.username} a retiré ${quantite} ${objet}`
-            );
-
-        }
-
-        // DELETE STOCK MODAL
-
-        if (interaction.customId === 'delete_stock_modal') {
-
-            const objet = interaction.fields.getTextInputValue('objet');
-
-            db.prepare(`
-                DELETE FROM stocks
-                WHERE item = ?
-            `).run(objet);
-
-            const embed = new EmbedBuilder()
-                .setTitle('🗑️ ITEM SUPPRIMÉ')
-                .setDescription(`
-👤 Membre : ${interaction.user}
-
-📦 ${objet} supprimé du stock.
-`)
-                .setColor('DarkRed');
-
-            interaction.reply({
-                embeds: [embed]
-            });
-
-        }
-
-        // SEARCH STOCK MODAL
-
-        if (interaction.customId === 'search_stock_modal') {
-
-            const objet = interaction.fields.getTextInputValue('objet');
-
-            const item = db.prepare(`
-                SELECT * FROM stocks
-                WHERE item LIKE ?
-            `).get(`%${objet}%`);
-
-            if (!item) {
-
-                return interaction.reply({
-                    content: '❌ Aucun item trouvé.',
-                    ephemeral: true
+                interaction.reply({
+                    embeds: [embed]
                 });
 
             }
 
-            const embed = new EmbedBuilder()
-                .setTitle('🔍 ITEM TROUVÉ')
-                .setDescription(`
+            // DELETE
+
+            if (interaction.customId === 'delete_stock_modal') {
+
+                const objet = interaction.fields.getTextInputValue('objet');
+
+                db.prepare(`
+                    DELETE FROM stocks
+                    WHERE item = ?
+                `).run(objet);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🗑️ ITEM SUPPRIMÉ')
+                    .setDescription(`
+👤 Membre : ${interaction.user}
+
+📦 ${objet} supprimé du stock.
+`)
+                    .setColor('DarkRed');
+
+                return interaction.reply({
+                    embeds: [embed]
+                });
+
+            }
+
+            // SEARCH
+
+            if (interaction.customId === 'search_stock_modal') {
+
+                const objet = interaction.fields.getTextInputValue('objet');
+
+                const item = db.prepare(`
+                    SELECT * FROM stocks
+                    WHERE item LIKE ?
+                `).get(`%${objet}%`);
+
+                if (!item) {
+
+                    return interaction.reply({
+                        content: '❌ Aucun item trouvé.',
+                        flags: InteractionResponseFlags.Ephemeral
+                    });
+
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🔍 ITEM TROUVÉ')
+                    .setDescription(`
 📦 Item : **${item.item}**
 📊 Quantité : **${item.quantity}**
 📂 Catégorie : **${categories[item.category]}**
 `)
-                .setColor('Blue');
+                    .setColor('Blue');
 
-            interaction.reply({
-                embeds: [embed],
-                ephemeral: true
-            });
+                return interaction.reply({
+                    embeds: [embed],
+                    flags: InteractionResponseFlags.Ephemeral
+                });
+
+            }
 
         }
 
-    }
+        // ================= SELECT MENUS =================
 
-    // ================= CATEGORY MENUS =================
+        if (interaction.isStringSelectMenu()) {
 
-    if (interaction.isStringSelectMenu()) {
+            // VIEW CATEGORY
 
-        // VIEW CATEGORY
+            if (interaction.customId === 'category_select') {
 
-        if (interaction.customId === 'category_select') {
+                const category = interaction.values[0];
 
-            const category = interaction.values[0];
+                const rows = db.prepare(`
+                    SELECT * FROM stocks
+                    WHERE category = ?
+                    ORDER BY item ASC
+                `).all(category);
 
-            const rows = db.prepare(`
-                SELECT * FROM stocks
-                WHERE category = ?
-                ORDER BY item ASC
-            `).all(category);
+                let description = '';
 
-            let description = '';
+                if (rows.length === 0) {
 
-            if (rows.length === 0) {
+                    description = '📦 Aucun item dans cette catégorie.';
 
-                description = '📦 Aucun item dans cette catégorie.';
+                } else {
 
-            } else {
+                    rows.forEach(row => {
 
-                rows.forEach(row => {
-
-                    description += `
+                        description += `
 📦 **${row.item}**
 └ Quantité : ${row.quantity}
 
 `;
 
-                });
+                    });
 
-            }
+                }
 
-            const embed = new EmbedBuilder()
-                .setTitle(`${categories[category]}`)
-                .setDescription(description)
-                .setColor('#8B0000');
-
-            return interaction.reply({
-                embeds: [embed],
-                ephemeral: true
-            });
-
-        }
-
-        // ADD CATEGORY SELECT
-
-        if (interaction.customId === 'add_category_select') {
-
-            const category = interaction.values[0];
-
-            const pending = pendingAdds.get(interaction.user.id);
-
-            if (!pending) {
+                const embed = new EmbedBuilder()
+                    .setTitle(`${categories[category]}`)
+                    .setDescription(description)
+                    .setColor('#8B0000');
 
                 return interaction.reply({
-                    content: '❌ Données expirées.',
-                    ephemeral: true
+                    embeds: [embed],
+                    flags: InteractionResponseFlags.Ephemeral
                 });
 
             }
 
-            const item = db.prepare(`
-                SELECT * FROM stocks
-                WHERE item = ?
-            `).get(pending.objet);
+            // ADD CATEGORY SELECT
 
-            if (item) {
+            if (interaction.customId === 'add_category_select') {
 
-                db.prepare(`
-                    UPDATE stocks
-                    SET quantity = ?
+                const category = interaction.values[0];
+
+                const pending = pendingAdds.get(interaction.user.id);
+
+                if (!pending) {
+
+                    return interaction.reply({
+                        content: '❌ Données expirées.',
+                        flags: InteractionResponseFlags.Ephemeral
+                    });
+
+                }
+
+                const item = db.prepare(`
+                    SELECT * FROM stocks
                     WHERE item = ?
-                `).run(item.quantity + pending.quantite, pending.objet);
+                `).get(pending.objet);
 
-            } else {
+                if (item) {
 
-                db.prepare(`
-                    INSERT INTO stocks(item, quantity, category)
-                    VALUES(?, ?, ?)
-                `).run(
-                    pending.objet,
-                    pending.quantite,
-                    category
-                );
+                    db.prepare(`
+                        UPDATE stocks
+                        SET quantity = ?
+                        WHERE item = ?
+                    `).run(item.quantity + pending.quantite, pending.objet);
 
-            }
+                } else {
 
-            pendingAdds.delete(interaction.user.id);
+                    db.prepare(`
+                        INSERT INTO stocks(item, quantity, category)
+                        VALUES(?, ?, ?)
+                    `).run(
+                        pending.objet,
+                        pending.quantite,
+                        category
+                    );
 
-            const embed = new EmbedBuilder()
-                .setTitle('📥 STOCK AJOUTÉ')
-                .setDescription(`
+                }
+
+                pendingAdds.delete(interaction.user.id);
+
+                const embed = new EmbedBuilder()
+                    .setTitle('📥 STOCK AJOUTÉ')
+                    .setDescription(`
 👤 Membre : ${interaction.user}
 
 📦 Item : **${pending.objet}**
 ➕ Quantité : **${pending.quantite}**
 📂 Catégorie : **${categories[category]}**
 `)
-                .setColor('Green');
+                    .setColor('Green');
 
-            interaction.reply({
-                embeds: [embed]
-            });
+                return interaction.update({
+                    content: '',
+                    embeds: [embed],
+                    components: []
+                });
 
-            sendLog(
-                interaction,
-                `📥 ${interaction.user.username} a ajouté ${pending.quantite} ${pending.objet}`
-            );
+            }
 
         }
+
+    } catch (err) {
+
+        console.error(err);
 
     }
 
