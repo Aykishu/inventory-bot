@@ -7,12 +7,12 @@ const {
     EmbedBuilder
 } = require('discord.js');
 
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');
 
 const express = require('express');
 const app = express();
 
-// ================= WEB SERVER (RENDER) =================
+// ================= WEB SERVER (RENDER FREE) =================
 
 app.get('/', (req, res) => {
     res.send('Bot online');
@@ -49,24 +49,22 @@ const client = new Client({
 
 // ================= DATABASE =================
 
-const db = new sqlite3.Database('./stocks.db');
+const db = new Database('stocks.db');
 
-db.serialize(() => {
+db.prepare(`
+    CREATE TABLE IF NOT EXISTS stocks (
+        item TEXT PRIMARY KEY,
+        quantity INTEGER NOT NULL
+    )
+`).run();
 
-    db.run(`
-        CREATE TABLE IF NOT EXISTS stocks (
-            item TEXT PRIMARY KEY,
-            quantity INTEGER NOT NULL
-        )
-    `);
-
-});
-
-console.log("✅ Base SQLite connectée.");
+console.log("✅ Base SQLite V3 connectée.");
 
 // ================= COMMANDES =================
 
 const commands = [
+
+    // AJOUTER
 
     new SlashCommandBuilder()
         .setName('ajouter')
@@ -80,6 +78,8 @@ const commands = [
                 .setDescription('Quantité')
                 .setRequired(true)),
 
+    // RETIRER
+
     new SlashCommandBuilder()
         .setName('retirer')
         .setDescription('Retirer du stock')
@@ -92,21 +92,27 @@ const commands = [
                 .setDescription('Quantité')
                 .setRequired(true)),
 
+    // STOCK
+
     new SlashCommandBuilder()
         .setName('stock')
-        .setDescription('Voir tout le stock'),
+        .setDescription('Voir le stock'),
+
+    // SUPPRIMER ITEM
 
     new SlashCommandBuilder()
         .setName('supprimeritem')
-        .setDescription('Supprimer un item du stock')
+        .setDescription('Supprimer un item')
         .addStringOption(option =>
             option.setName('objet')
                 .setDescription('Nom de l’objet')
                 .setRequired(true)),
 
+    // SET STOCK
+
     new SlashCommandBuilder()
         .setName('setstock')
-        .setDescription('Définir un stock')
+        .setDescription('Définir une quantité')
         .addStringOption(option =>
             option.setName('objet')
                 .setDescription('Nom de l’objet')
@@ -187,53 +193,47 @@ client.on('interactionCreate', async interaction => {
     if (interaction.commandName === 'ajouter') {
 
         if (!hasPermission(interaction)) {
+
             return interaction.reply({
                 content: '❌ Permission refusée.',
                 ephemeral: true
             });
+
         }
 
         const objet = interaction.options.getString('objet');
         const quantite = interaction.options.getInteger('quantite');
 
-        db.get(
-            `SELECT * FROM stocks WHERE item = ?`,
-            [objet],
-            (err, row) => {
+        const item = db.prepare(
+            'SELECT * FROM stocks WHERE item = ?'
+        ).get(objet);
 
-                if (row) {
+        if (item) {
 
-                    const newQuantity = row.quantity + quantite;
+            db.prepare(
+                'UPDATE stocks SET quantity = ? WHERE item = ?'
+            ).run(item.quantity + quantite, objet);
 
-                    db.run(
-                        `UPDATE stocks SET quantity = ? WHERE item = ?`,
-                        [newQuantity, objet]
-                    );
+        } else {
 
-                } else {
+            db.prepare(
+                'INSERT INTO stocks(item, quantity) VALUES(?, ?)'
+            ).run(objet, quantite);
 
-                    db.run(
-                        `INSERT INTO stocks(item, quantity) VALUES(?, ?)`,
-                        [objet, quantite]
-                    );
+        }
 
-                }
+        const embed = new EmbedBuilder()
+            .setTitle('📦 Stock ajouté')
+            .setDescription(`✅ ${quantite} ${objet} ajouté(s).`)
+            .setColor('Green');
 
-                const embed = new EmbedBuilder()
-                    .setTitle('📦 Stock ajouté')
-                    .setDescription(`✅ ${quantite} ${objet} ajouté(s).`)
-                    .setColor('Green');
+        await interaction.reply({
+            embeds: [embed]
+        });
 
-                interaction.reply({
-                    embeds: [embed]
-                });
-
-                sendLog(
-                    interaction,
-                    `📥 ${interaction.user.username} a ajouté ${quantite} ${objet}`
-                );
-
-            }
+        sendLog(
+            interaction,
+            `📥 ${interaction.user.username} a ajouté ${quantite} ${objet}`
         );
     }
 
@@ -242,55 +242,52 @@ client.on('interactionCreate', async interaction => {
     if (interaction.commandName === 'retirer') {
 
         if (!hasPermission(interaction)) {
+
             return interaction.reply({
                 content: '❌ Permission refusée.',
                 ephemeral: true
             });
+
         }
 
         const objet = interaction.options.getString('objet');
         const quantite = interaction.options.getInteger('quantite');
 
-        db.get(
-            `SELECT * FROM stocks WHERE item = ?`,
-            [objet],
-            (err, row) => {
+        const item = db.prepare(
+            'SELECT * FROM stocks WHERE item = ?'
+        ).get(objet);
 
-                if (!row) {
+        if (!item) {
 
-                    return interaction.reply({
-                        content: '❌ Item introuvable.',
-                        ephemeral: true
-                    });
+            return interaction.reply({
+                content: '❌ Item introuvable.',
+                ephemeral: true
+            });
 
-                }
+        }
 
-                let newQuantity = row.quantity - quantite;
+        let newQuantity = item.quantity - quantite;
 
-                if (newQuantity < 0) {
-                    newQuantity = 0;
-                }
+        if (newQuantity < 0) {
+            newQuantity = 0;
+        }
 
-                db.run(
-                    `UPDATE stocks SET quantity = ? WHERE item = ?`,
-                    [newQuantity, objet]
-                );
+        db.prepare(
+            'UPDATE stocks SET quantity = ? WHERE item = ?'
+        ).run(newQuantity, objet);
 
-                const embed = new EmbedBuilder()
-                    .setTitle('📦 Stock retiré')
-                    .setDescription(`❌ ${quantite} ${objet} retiré(s).`)
-                    .setColor('Red');
+        const embed = new EmbedBuilder()
+            .setTitle('📦 Stock retiré')
+            .setDescription(`❌ ${quantite} ${objet} retiré(s).`)
+            .setColor('Red');
 
-                interaction.reply({
-                    embeds: [embed]
-                });
+        await interaction.reply({
+            embeds: [embed]
+        });
 
-                sendLog(
-                    interaction,
-                    `📤 ${interaction.user.username} a retiré ${quantite} ${objet}`
-                );
-
-            }
+        sendLog(
+            interaction,
+            `📤 ${interaction.user.username} a retiré ${quantite} ${objet}`
         );
     }
 
@@ -298,41 +295,37 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.commandName === 'stock') {
 
-        db.all(
-            `SELECT * FROM stocks ORDER BY item ASC`,
-            [],
-            (err, rows) => {
+        const rows = db.prepare(
+            'SELECT * FROM stocks ORDER BY item ASC'
+        ).all();
 
-                if (!rows.length) {
+        if (rows.length === 0) {
 
-                    return interaction.reply({
-                        content: '📦 Aucun stock enregistré.'
-                    });
+            return interaction.reply({
+                content: '📦 Aucun stock enregistré.'
+            });
 
-                }
+        }
 
-                let description = '';
+        let description = '';
 
-                rows.forEach(row => {
+        rows.forEach(row => {
 
-                    description += `📦 **${row.item}** : ${row.quantity}\n`;
+            description += `📦 **${row.item}** : ${row.quantity}\n`;
 
-                });
+        });
 
-                const embed = new EmbedBuilder()
-                    .setTitle('📦 Inventaire Hells Legion')
-                    .setDescription(description)
-                    .setColor('Blue')
-                    .setFooter({
-                        text: 'SQLite Inventory System'
-                    });
+        const embed = new EmbedBuilder()
+            .setTitle('📦 Inventaire Hells Legion')
+            .setDescription(description)
+            .setColor('Blue')
+            .setFooter({
+                text: 'Inventory V3 • SQLite'
+            });
 
-                interaction.reply({
-                    embeds: [embed]
-                });
-
-            }
-        );
+        await interaction.reply({
+            embeds: [embed]
+        });
     }
 
     // ================= SUPPRIMER ITEM =================
@@ -340,43 +333,41 @@ client.on('interactionCreate', async interaction => {
     if (interaction.commandName === 'supprimeritem') {
 
         if (!hasPermission(interaction)) {
+
             return interaction.reply({
                 content: '❌ Permission refusée.',
                 ephemeral: true
             });
+
         }
 
         const objet = interaction.options.getString('objet');
 
-        db.run(
-            `DELETE FROM stocks WHERE item = ?`,
-            [objet],
-            function () {
+        const result = db.prepare(
+            'DELETE FROM stocks WHERE item = ?'
+        ).run(objet);
 
-                if (this.changes === 0) {
+        if (result.changes === 0) {
 
-                    return interaction.reply({
-                        content: '❌ Item introuvable.',
-                        ephemeral: true
-                    });
+            return interaction.reply({
+                content: '❌ Item introuvable.',
+                ephemeral: true
+            });
 
-                }
+        }
 
-                const embed = new EmbedBuilder()
-                    .setTitle('🗑️ Item supprimé')
-                    .setDescription(`❌ ${objet} supprimé du stock.`)
-                    .setColor('DarkRed');
+        const embed = new EmbedBuilder()
+            .setTitle('🗑️ Item supprimé')
+            .setDescription(`❌ ${objet} supprimé du stock.`)
+            .setColor('DarkRed');
 
-                interaction.reply({
-                    embeds: [embed]
-                });
+        await interaction.reply({
+            embeds: [embed]
+        });
 
-                sendLog(
-                    interaction,
-                    `🗑️ ${interaction.user.username} a supprimé ${objet}`
-                );
-
-            }
+        sendLog(
+            interaction,
+            `🗑️ ${interaction.user.username} a supprimé ${objet}`
         );
     }
 
@@ -385,31 +376,41 @@ client.on('interactionCreate', async interaction => {
     if (interaction.commandName === 'setstock') {
 
         if (!hasPermission(interaction)) {
+
             return interaction.reply({
                 content: '❌ Permission refusée.',
                 ephemeral: true
             });
+
         }
 
         const objet = interaction.options.getString('objet');
         const quantite = interaction.options.getInteger('quantite');
 
-        db.run(
-            `
-            INSERT INTO stocks(item, quantity)
-            VALUES(?, ?)
-            ON CONFLICT(item)
-            DO UPDATE SET quantity = excluded.quantity
-            `,
-            [objet, quantite]
-        );
+        const item = db.prepare(
+            'SELECT * FROM stocks WHERE item = ?'
+        ).get(objet);
+
+        if (item) {
+
+            db.prepare(
+                'UPDATE stocks SET quantity = ? WHERE item = ?'
+            ).run(quantite, objet);
+
+        } else {
+
+            db.prepare(
+                'INSERT INTO stocks(item, quantity) VALUES(?, ?)'
+            ).run(objet, quantite);
+
+        }
 
         const embed = new EmbedBuilder()
             .setTitle('⚙️ Stock modifié')
             .setDescription(`📦 ${objet} = ${quantite}`)
             .setColor('Orange');
 
-        interaction.reply({
+        await interaction.reply({
             embeds: [embed]
         });
 
