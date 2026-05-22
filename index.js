@@ -4,7 +4,11 @@ const {
     SlashCommandBuilder,
     Routes,
     REST,
-    EmbedBuilder
+    EmbedBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    StringSelectMenuBuilder
 } = require('discord.js');
 
 const Database = require('better-sqlite3');
@@ -12,10 +16,10 @@ const Database = require('better-sqlite3');
 const express = require('express');
 const app = express();
 
-// ================= WEB SERVER (RENDER FREE) =================
+// ================= WEB SERVER =================
 
 app.get('/', (req, res) => {
-    res.send('Bot online');
+    res.send('Hells Legion Inventory Online');
 });
 
 app.listen(process.env.PORT || 3000, () => {
@@ -41,7 +45,7 @@ const config = {
     logChannelName: "📦・│stockage"
 };
 
-// ================= BOT =================
+// ================= CLIENT =================
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
@@ -52,23 +56,37 @@ const client = new Client({
 const db = new Database('stocks.db');
 
 db.prepare(`
-    CREATE TABLE IF NOT EXISTS stocks (
-        item TEXT PRIMARY KEY,
-        quantity INTEGER NOT NULL
-    )
+CREATE TABLE IF NOT EXISTS stocks (
+    item TEXT PRIMARY KEY,
+    quantity INTEGER NOT NULL,
+    category TEXT NOT NULL
+)
 `).run();
 
-console.log("✅ Base SQLite V3 connectée.");
+console.log("✅ SQLite V4 connecté.");
+
+// ================= CATEGORIES =================
+
+const categories = {
+    ressources: "🔩 Ressources",
+    medical: "💊 Médical",
+    armes: "🔫 Armurerie",
+    vehicules: "🚗 Véhicules",
+    nourriture: "🍔 Nourriture",
+    divers: "📦 Divers"
+};
 
 // ================= COMMANDES =================
 
 const commands = [
 
-    // AJOUTER
+    new SlashCommandBuilder()
+        .setName('inventaire')
+        .setDescription('Ouvrir le panel inventaire'),
 
     new SlashCommandBuilder()
         .setName('ajouter')
-        .setDescription('Ajouter du stock')
+        .setDescription('Ajouter un item')
         .addStringOption(option =>
             option.setName('objet')
                 .setDescription('Nom de l’objet')
@@ -76,13 +94,23 @@ const commands = [
         .addIntegerOption(option =>
             option.setName('quantite')
                 .setDescription('Quantité')
-                .setRequired(true)),
-
-    // RETIRER
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('categorie')
+                .setDescription('Catégorie')
+                .setRequired(true)
+                .addChoices(
+                    { name: '🔩 Ressources', value: 'ressources' },
+                    { name: '💊 Médical', value: 'medical' },
+                    { name: '🔫 Armurerie', value: 'armes' },
+                    { name: '🚗 Véhicules', value: 'vehicules' },
+                    { name: '🍔 Nourriture', value: 'nourriture' },
+                    { name: '📦 Divers', value: 'divers' }
+                )),
 
     new SlashCommandBuilder()
         .setName('retirer')
-        .setDescription('Retirer du stock')
+        .setDescription('Retirer un item')
         .addStringOption(option =>
             option.setName('objet')
                 .setDescription('Nom de l’objet')
@@ -91,40 +119,18 @@ const commands = [
             option.setName('quantite')
                 .setDescription('Quantité')
                 .setRequired(true)),
-
-    // STOCK
-
-    new SlashCommandBuilder()
-        .setName('stock')
-        .setDescription('Voir le stock'),
-
-    // SUPPRIMER ITEM
 
     new SlashCommandBuilder()
         .setName('supprimeritem')
         .setDescription('Supprimer un item')
         .addStringOption(option =>
             option.setName('objet')
-                .setDescription('Nom de l’objet')
-                .setRequired(true)),
-
-    // SET STOCK
-
-    new SlashCommandBuilder()
-        .setName('setstock')
-        .setDescription('Définir une quantité')
-        .addStringOption(option =>
-            option.setName('objet')
-                .setDescription('Nom de l’objet')
-                .setRequired(true))
-        .addIntegerOption(option =>
-            option.setName('quantite')
-                .setDescription('Nouvelle quantité')
+                .setDescription('Nom')
                 .setRequired(true))
 
 ].map(command => command.toJSON());
 
-// ================= ENREGISTREMENT COMMANDES =================
+// ================= REGISTER =================
 
 const rest = new REST({ version: '10' }).setToken(config.token);
 
@@ -140,11 +146,11 @@ const rest = new REST({ version: '10' }).setToken(config.token);
             { body: commands }
         );
 
-        console.log('✅ Commandes enregistrées.');
+        console.log("✅ Commandes V4 enregistrées.");
 
-    } catch (error) {
+    } catch (err) {
 
-        console.error(error);
+        console.error(err);
 
     }
 
@@ -154,7 +160,7 @@ const rest = new REST({ version: '10' }).setToken(config.token);
 
 client.once('ready', () => {
 
-    console.log(`✅ ${client.user.tag} est en ligne.`);
+    console.log(`✅ ${client.user.tag} connecté.`);
 
 });
 
@@ -182,242 +188,398 @@ function sendLog(interaction, message) {
 
 }
 
+// ================= INVENTAIRE EMBED =================
+
+function createMainEmbed() {
+
+    const totalItems = db.prepare(
+        `SELECT COUNT(*) as count FROM stocks`
+    ).get().count;
+
+    const totalQuantity = db.prepare(
+        `SELECT SUM(quantity) as total FROM stocks`
+    ).get().total || 0;
+
+    return new EmbedBuilder()
+        .setTitle('📦 HELLS LEGION • INVENTAIRE')
+        .setDescription(`
+Bienvenue dans le système de stockage.
+
+🔩 Ressources
+💊 Médical
+🔫 Armurerie
+🚗 Véhicules
+🍔 Nourriture
+📦 Divers
+`)
+        .addFields(
+            {
+                name: '📊 Statistiques',
+                value:
+`📦 Items : ${totalItems}
+📈 Quantité totale : ${totalQuantity}`,
+                inline: false
+            }
+        )
+        .setColor('#8B0000')
+        .setFooter({
+            text: 'Inventory System V4'
+        });
+
+}
+
+// ================= BOUTONS =================
+
+function createButtons() {
+
+    return new ActionRowBuilder()
+        .addComponents(
+
+            new ButtonBuilder()
+                .setCustomId('view_stock')
+                .setLabel('Voir Stock')
+                .setEmoji('📦')
+                .setStyle(ButtonStyle.Primary),
+
+            new ButtonBuilder()
+                .setCustomId('refresh_stock')
+                .setLabel('Actualiser')
+                .setEmoji('🔄')
+                .setStyle(ButtonStyle.Secondary)
+
+        );
+
+}
+
+// ================= MENU =================
+
+function createCategoryMenu() {
+
+    return new ActionRowBuilder()
+        .addComponents(
+
+            new StringSelectMenuBuilder()
+                .setCustomId('category_select')
+                .setPlaceholder('📂 Choisir une catégorie')
+                .addOptions([
+                    {
+                        label: 'Ressources',
+                        value: 'ressources',
+                        emoji: '🔩'
+                    },
+                    {
+                        label: 'Médical',
+                        value: 'medical',
+                        emoji: '💊'
+                    },
+                    {
+                        label: 'Armurerie',
+                        value: 'armes',
+                        emoji: '🔫'
+                    },
+                    {
+                        label: 'Véhicules',
+                        value: 'vehicules',
+                        emoji: '🚗'
+                    },
+                    {
+                        label: 'Nourriture',
+                        value: 'nourriture',
+                        emoji: '🍔'
+                    },
+                    {
+                        label: 'Divers',
+                        value: 'divers',
+                        emoji: '📦'
+                    }
+                ])
+
+        );
+
+}
+
 // ================= INTERACTIONS =================
 
 client.on('interactionCreate', async interaction => {
 
-    if (!interaction.isChatInputCommand()) return;
+    // ================= COMMANDES =================
 
-    // ================= AJOUTER =================
+    if (interaction.isChatInputCommand()) {
 
-    if (interaction.commandName === 'ajouter') {
+        // INVENTAIRE
 
-        if (!hasPermission(interaction)) {
+        if (interaction.commandName === 'inventaire') {
 
             return interaction.reply({
-                content: '❌ Permission refusée.',
-                ephemeral: true
+                embeds: [createMainEmbed()],
+                components: [
+                    createButtons(),
+                    createCategoryMenu()
+                ]
             });
 
         }
 
-        const objet = interaction.options.getString('objet');
-        const quantite = interaction.options.getInteger('quantite');
+        // AJOUTER
 
-        const item = db.prepare(
-            'SELECT * FROM stocks WHERE item = ?'
-        ).get(objet);
+        if (interaction.commandName === 'ajouter') {
 
-        if (item) {
+            if (!hasPermission(interaction)) {
 
-            db.prepare(
-                'UPDATE stocks SET quantity = ? WHERE item = ?'
-            ).run(item.quantity + quantite, objet);
+                return interaction.reply({
+                    content: '❌ Permission refusée.',
+                    ephemeral: true
+                });
 
-        } else {
+            }
 
-            db.prepare(
-                'INSERT INTO stocks(item, quantity) VALUES(?, ?)'
-            ).run(objet, quantite);
+            const objet = interaction.options.getString('objet');
+            const quantite = interaction.options.getInteger('quantite');
+            const categorie = interaction.options.getString('categorie');
+
+            const item = db.prepare(
+                `SELECT * FROM stocks WHERE item = ?`
+            ).get(objet);
+
+            if (item) {
+
+                db.prepare(`
+                    UPDATE stocks
+                    SET quantity = ?
+                    WHERE item = ?
+                `).run(item.quantity + quantite, objet);
+
+            } else {
+
+                db.prepare(`
+                    INSERT INTO stocks(item, quantity, category)
+                    VALUES(?, ?, ?)
+                `).run(objet, quantite, categorie);
+
+            }
+
+            const embed = new EmbedBuilder()
+                .setTitle('📥 STOCK AJOUTÉ')
+                .setDescription(`
+📦 Item : **${objet}**
+➕ Quantité : **${quantite}**
+📂 Catégorie : **${categories[categorie]}**
+`)
+                .setColor('Green');
+
+            interaction.reply({
+                embeds: [embed]
+            });
+
+            sendLog(
+                interaction,
+                `📥 ${interaction.user.username} a ajouté ${quantite} ${objet}`
+            );
 
         }
 
-        const embed = new EmbedBuilder()
-            .setTitle('📦 Stock ajouté')
-            .setDescription(`✅ ${quantite} ${objet} ajouté(s).`)
-            .setColor('Green');
+        // RETIRER
 
-        await interaction.reply({
-            embeds: [embed]
-        });
+        if (interaction.commandName === 'retirer') {
 
-        sendLog(
-            interaction,
-            `📥 ${interaction.user.username} a ajouté ${quantite} ${objet}`
-        );
+            if (!hasPermission(interaction)) {
+
+                return interaction.reply({
+                    content: '❌ Permission refusée.',
+                    ephemeral: true
+                });
+
+            }
+
+            const objet = interaction.options.getString('objet');
+            const quantite = interaction.options.getInteger('quantite');
+
+            const item = db.prepare(
+                `SELECT * FROM stocks WHERE item = ?`
+            ).get(objet);
+
+            if (!item) {
+
+                return interaction.reply({
+                    content: '❌ Item introuvable.',
+                    ephemeral: true
+                });
+
+            }
+
+            let newQuantity = item.quantity - quantite;
+
+            if (newQuantity < 0) {
+                newQuantity = 0;
+            }
+
+            db.prepare(`
+                UPDATE stocks
+                SET quantity = ?
+                WHERE item = ?
+            `).run(newQuantity, objet);
+
+            const embed = new EmbedBuilder()
+                .setTitle('📤 STOCK RETIRÉ')
+                .setDescription(`
+📦 Item : **${objet}**
+➖ Quantité : **${quantite}**
+📉 Nouveau stock : **${newQuantity}**
+`)
+                .setColor('Red');
+
+            interaction.reply({
+                embeds: [embed]
+            });
+
+            sendLog(
+                interaction,
+                `📤 ${interaction.user.username} a retiré ${quantite} ${objet}`
+            );
+
+        }
+
+        // SUPPRIMER ITEM
+
+        if (interaction.commandName === 'supprimeritem') {
+
+            if (!hasPermission(interaction)) {
+
+                return interaction.reply({
+                    content: '❌ Permission refusée.',
+                    ephemeral: true
+                });
+
+            }
+
+            const objet = interaction.options.getString('objet');
+
+            db.prepare(`
+                DELETE FROM stocks
+                WHERE item = ?
+            `).run(objet);
+
+            const embed = new EmbedBuilder()
+                .setTitle('🗑️ ITEM SUPPRIMÉ')
+                .setDescription(`📦 ${objet} supprimé du stock.`)
+                .setColor('DarkRed');
+
+            interaction.reply({
+                embeds: [embed]
+            });
+
+        }
+
     }
 
-    // ================= RETIRER =================
+    // ================= BOUTONS =================
 
-    if (interaction.commandName === 'retirer') {
+    if (interaction.isButton()) {
 
-        if (!hasPermission(interaction)) {
+        // VOIR STOCK
+
+        if (interaction.customId === 'view_stock') {
+
+            const rows = db.prepare(`
+                SELECT * FROM stocks
+                ORDER BY category ASC, item ASC
+            `).all();
+
+            if (rows.length === 0) {
+
+                return interaction.reply({
+                    content: '📦 Aucun stock enregistré.',
+                    ephemeral: true
+                });
+
+            }
+
+            let description = '';
+
+            rows.forEach(row => {
+
+                description += `
+${categories[row.category] || '📦'} **${row.item}**
+└ 📦 ${row.quantity}
+
+`;
+
+            });
+
+            const embed = new EmbedBuilder()
+                .setTitle('📦 STOCK COMPLET')
+                .setDescription(description)
+                .setColor('#8B0000');
 
             return interaction.reply({
-                content: '❌ Permission refusée.',
+                embeds: [embed],
                 ephemeral: true
             });
 
         }
 
-        const objet = interaction.options.getString('objet');
-        const quantite = interaction.options.getInteger('quantite');
+        // REFRESH
 
-        const item = db.prepare(
-            'SELECT * FROM stocks WHERE item = ?'
-        ).get(objet);
+        if (interaction.customId === 'refresh_stock') {
 
-        if (!item) {
-
-            return interaction.reply({
-                content: '❌ Item introuvable.',
-                ephemeral: true
+            return interaction.update({
+                embeds: [createMainEmbed()],
+                components: [
+                    createButtons(),
+                    createCategoryMenu()
+                ]
             });
 
         }
 
-        let newQuantity = item.quantity - quantite;
-
-        if (newQuantity < 0) {
-            newQuantity = 0;
-        }
-
-        db.prepare(
-            'UPDATE stocks SET quantity = ? WHERE item = ?'
-        ).run(newQuantity, objet);
-
-        const embed = new EmbedBuilder()
-            .setTitle('📦 Stock retiré')
-            .setDescription(`❌ ${quantite} ${objet} retiré(s).`)
-            .setColor('Red');
-
-        await interaction.reply({
-            embeds: [embed]
-        });
-
-        sendLog(
-            interaction,
-            `📤 ${interaction.user.username} a retiré ${quantite} ${objet}`
-        );
     }
 
-    // ================= STOCK =================
+    // ================= MENU CATEGORIES =================
 
-    if (interaction.commandName === 'stock') {
+    if (interaction.isStringSelectMenu()) {
 
-        const rows = db.prepare(
-            'SELECT * FROM stocks ORDER BY item ASC'
-        ).all();
+        if (interaction.customId === 'category_select') {
 
-        if (rows.length === 0) {
+            const category = interaction.values[0];
 
-            return interaction.reply({
-                content: '📦 Aucun stock enregistré.'
-            });
+            const rows = db.prepare(`
+                SELECT * FROM stocks
+                WHERE category = ?
+                ORDER BY item ASC
+            `).all(category);
 
-        }
+            let description = '';
 
-        let description = '';
+            if (rows.length === 0) {
 
-        rows.forEach(row => {
+                description = '📦 Aucun item dans cette catégorie.';
 
-            description += `📦 **${row.item}** : ${row.quantity}\n`;
+            } else {
 
-        });
+                rows.forEach(row => {
 
-        const embed = new EmbedBuilder()
-            .setTitle('📦 Inventaire Hells Legion')
-            .setDescription(description)
-            .setColor('Blue')
-            .setFooter({
-                text: 'Inventory V3 • SQLite'
-            });
+                    description += `
+📦 **${row.item}**
+└ Quantité : ${row.quantity}
 
-        await interaction.reply({
-            embeds: [embed]
-        });
-    }
+`;
 
-    // ================= SUPPRIMER ITEM =================
+                });
 
-    if (interaction.commandName === 'supprimeritem') {
+            }
 
-        if (!hasPermission(interaction)) {
+            const embed = new EmbedBuilder()
+                .setTitle(`${categories[category]}`)
+                .setDescription(description)
+                .setColor('#8B0000');
 
             return interaction.reply({
-                content: '❌ Permission refusée.',
+                embeds: [embed],
                 ephemeral: true
             });
 
         }
 
-        const objet = interaction.options.getString('objet');
-
-        const result = db.prepare(
-            'DELETE FROM stocks WHERE item = ?'
-        ).run(objet);
-
-        if (result.changes === 0) {
-
-            return interaction.reply({
-                content: '❌ Item introuvable.',
-                ephemeral: true
-            });
-
-        }
-
-        const embed = new EmbedBuilder()
-            .setTitle('🗑️ Item supprimé')
-            .setDescription(`❌ ${objet} supprimé du stock.`)
-            .setColor('DarkRed');
-
-        await interaction.reply({
-            embeds: [embed]
-        });
-
-        sendLog(
-            interaction,
-            `🗑️ ${interaction.user.username} a supprimé ${objet}`
-        );
-    }
-
-    // ================= SET STOCK =================
-
-    if (interaction.commandName === 'setstock') {
-
-        if (!hasPermission(interaction)) {
-
-            return interaction.reply({
-                content: '❌ Permission refusée.',
-                ephemeral: true
-            });
-
-        }
-
-        const objet = interaction.options.getString('objet');
-        const quantite = interaction.options.getInteger('quantite');
-
-        const item = db.prepare(
-            'SELECT * FROM stocks WHERE item = ?'
-        ).get(objet);
-
-        if (item) {
-
-            db.prepare(
-                'UPDATE stocks SET quantity = ? WHERE item = ?'
-            ).run(quantite, objet);
-
-        } else {
-
-            db.prepare(
-                'INSERT INTO stocks(item, quantity) VALUES(?, ?)'
-            ).run(objet, quantite);
-
-        }
-
-        const embed = new EmbedBuilder()
-            .setTitle('⚙️ Stock modifié')
-            .setDescription(`📦 ${objet} = ${quantite}`)
-            .setColor('Orange');
-
-        await interaction.reply({
-            embeds: [embed]
-        });
-
-        sendLog(
-            interaction,
-            `⚙️ ${interaction.user.username} a défini ${objet} à ${quantite}`
-        );
     }
 
 });
