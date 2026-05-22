@@ -45,7 +45,7 @@ const config = {
         "Secrétaire"
     ],
 
-    logChannelName: "📦・│stockage"
+    logChannelName: "📦・│log-stockage"
 };
 
 // ================= CLIENT =================
@@ -159,7 +159,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V8'
+            text: 'Inventory System V9'
         });
 
 }
@@ -493,130 +493,6 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // REMOVE STOCK
-
-            if (interaction.customId === 'remove_stock_modal') {
-
-                const objet = interaction.fields.getTextInputValue('objet');
-
-                const quantite = Number(
-                    interaction.fields.getTextInputValue('quantite')
-                );
-
-                if (isNaN(quantite) || quantite <= 0) {
-
-                    return interaction.reply({
-                        content: '❌ Quantité invalide.',
-                        ephemeral: true
-                    });
-
-                }
-
-                const item = db.prepare(`
-                    SELECT * FROM stocks
-                    WHERE item = ?
-                `).get(objet);
-
-                if (!item) {
-
-                    return interaction.reply({
-                        content: '❌ Item introuvable.',
-                        ephemeral: true
-                    });
-
-                }
-
-                let newQuantity = item.quantity - quantite;
-
-                if (newQuantity < 0) {
-                    newQuantity = 0;
-                }
-
-                db.prepare(`
-                    UPDATE stocks
-                    SET quantity = ?
-                    WHERE item = ?
-                `).run(newQuantity, objet);
-
-                const embed = new EmbedBuilder()
-                    .setTitle('📤 STOCK RETIRÉ')
-                    .setDescription(`
-👤 Membre : ${interaction.user}
-
-📦 Item : **${objet}**
-➖ Quantité : **${quantite}**
-📉 Nouveau stock : **${newQuantity}**
-`)
-                    .setColor('Red');
-
-                return interaction.reply({
-                    embeds: [embed]
-                });
-
-            }
-
-            // DELETE STOCK
-
-            if (interaction.customId === 'delete_stock_modal') {
-
-                const objet = interaction.fields.getTextInputValue('objet');
-
-                db.prepare(`
-                    DELETE FROM stocks
-                    WHERE item = ?
-                `).run(objet);
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🗑️ ITEM SUPPRIMÉ')
-                    .setDescription(`
-👤 Membre : ${interaction.user}
-
-📦 ${objet} supprimé du stock.
-`)
-                    .setColor('DarkRed');
-
-                return interaction.reply({
-                    embeds: [embed]
-                });
-
-            }
-
-            // SEARCH STOCK
-
-            if (interaction.customId === 'search_stock_modal') {
-
-                const objet = interaction.fields.getTextInputValue('objet');
-
-                const item = db.prepare(`
-                    SELECT * FROM stocks
-                    WHERE item LIKE ?
-                `).get(`%${objet}%`);
-
-                if (!item) {
-
-                    return interaction.reply({
-                        content: '❌ Aucun item trouvé.',
-                        ephemeral: true
-                    });
-
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🔍 ITEM TROUVÉ')
-                    .setDescription(`
-📦 Item : **${item.item}**
-📊 Quantité : **${item.quantity}**
-📂 Catégorie : **${categories[item.category]}**
-`)
-                    .setColor('Blue');
-
-                return interaction.reply({
-                    embeds: [embed],
-                    ephemeral: true
-                });
-
-            }
-
         }
 
         // ================= SELECT MENU =================
@@ -726,10 +602,30 @@ ${categories[row.category]} **${row.item}**
 `)
                     .setColor('Green');
 
+                // MESSAGE PUBLIC
+
+                await interaction.channel.send({
+                    embeds: [embed]
+                });
+
+                // LOG CHANNEL
+
+                const logChannel = interaction.guild.channels.cache.find(
+                    c => c.name === config.logChannelName
+                );
+
+                if (logChannel) {
+
+                    await logChannel.send({
+                        embeds: [embed]
+                    });
+
+                }
+
                 return interaction.update({
-                    content: '',
-                    embeds: [embed],
-                    components: []
+                    content: '✅ Stock ajouté.',
+                    components: [],
+                    embeds: []
                 });
 
             }
