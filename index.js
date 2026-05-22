@@ -121,7 +121,7 @@ const rest = new REST({ version: '10' }).setToken(config.token);
 
 // ================= READY =================
 
-client.once('clientReady', () => {
+client.once('ready', () => {
 
     console.log(`✅ ${client.user.tag} connecté.`);
 
@@ -159,7 +159,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V7'
+            text: 'Inventory System V8'
         });
 
 }
@@ -273,7 +273,7 @@ client.on('interactionCreate', async interaction => {
 
     try {
 
-        // ================= COMMAND =================
+        // ================= SLASH COMMAND =================
 
         if (interaction.isChatInputCommand()) {
 
@@ -459,15 +459,24 @@ ${categories[row.category]} **${row.item}**
 
         if (interaction.isModalSubmit()) {
 
-            // ADD
+            // ADD STOCK
 
             if (interaction.customId === 'add_stock_modal') {
 
                 const objet = interaction.fields.getTextInputValue('objet');
 
-                const quantite = parseInt(
+                const quantite = Number(
                     interaction.fields.getTextInputValue('quantite')
                 );
+
+                if (isNaN(quantite) || quantite <= 0) {
+
+                    return interaction.reply({
+                        content: '❌ Quantité invalide.',
+                        ephemeral: true
+                    });
+
+                }
 
                 pendingAdds.set(interaction.user.id, {
                     objet,
@@ -484,15 +493,24 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // REMOVE
+            // REMOVE STOCK
 
             if (interaction.customId === 'remove_stock_modal') {
 
                 const objet = interaction.fields.getTextInputValue('objet');
 
-                const quantite = parseInt(
+                const quantite = Number(
                     interaction.fields.getTextInputValue('quantite')
                 );
+
+                if (isNaN(quantite) || quantite <= 0) {
+
+                    return interaction.reply({
+                        content: '❌ Quantité invalide.',
+                        ephemeral: true
+                    });
+
+                }
 
                 const item = db.prepare(`
                     SELECT * FROM stocks
@@ -537,7 +555,7 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // DELETE
+            // DELETE STOCK
 
             if (interaction.customId === 'delete_stock_modal') {
 
@@ -563,7 +581,7 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // SEARCH
+            // SEARCH STOCK
 
             if (interaction.customId === 'search_stock_modal') {
 
@@ -605,7 +623,7 @@ ${categories[row.category]} **${row.item}**
 
         if (interaction.isStringSelectMenu()) {
 
-            // VIEW CATEGORY
+            // CATEGORY VIEW
 
             if (interaction.customId === 'category_select') {
 
@@ -649,7 +667,7 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // ADD CATEGORY SELECT
+            // ADD CATEGORY
 
             if (interaction.customId === 'add_category_select') {
 
@@ -677,7 +695,10 @@ ${categories[row.category]} **${row.item}**
                         UPDATE stocks
                         SET quantity = ?
                         WHERE item = ?
-                    `).run(item.quantity + pending.quantite, pending.objet);
+                    `).run(
+                        item.quantity + pending.quantite,
+                        pending.objet
+                    );
 
                 } else {
 
