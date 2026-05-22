@@ -7,7 +7,22 @@ const {
     EmbedBuilder
 } = require('discord.js');
 
-const fs = require('fs');
+const sqlite3 = require('sqlite3').verbose();
+
+const express = require('express');
+const app = express();
+
+// ================= WEB SERVER (RENDER) =================
+
+app.get('/', (req, res) => {
+    res.send('Bot online');
+});
+
+app.listen(process.env.PORT || 3000, () => {
+    console.log('🌐 Web server lancé.');
+});
+
+// ================= CONFIG =================
 
 const config = {
     token: process.env.TOKEN,
@@ -26,21 +41,33 @@ const config = {
     logChannelName: "📦・│stockage"
 };
 
+// ================= BOT =================
+
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
 
-let stocks = {};
+// ================= DATABASE =================
 
-if (fs.existsSync('./stock.json')) {
-    stocks = JSON.parse(fs.readFileSync('./stock.json'));
-}
+const db = new sqlite3.Database('./stocks.db');
 
-function saveStocks() {
-    fs.writeFileSync('./stock.json', JSON.stringify(stocks, null, 2));
-}
+db.serialize(() => {
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS stocks (
+            item TEXT PRIMARY KEY,
+            quantity INTEGER NOT NULL
+        )
+    `);
+
+});
+
+console.log("✅ Base SQLite connectée.");
+
+// ================= COMMANDES =================
 
 const commands = [
+
     new SlashCommandBuilder()
         .setName('ajouter')
         .setDescription('Ajouter du stock')
@@ -67,13 +94,36 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('stock')
-        .setDescription('Voir les stocks')
+        .setDescription('Voir tout le stock'),
+
+    new SlashCommandBuilder()
+        .setName('supprimeritem')
+        .setDescription('Supprimer un item du stock')
+        .addStringOption(option =>
+            option.setName('objet')
+                .setDescription('Nom de l’objet')
+                .setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('setstock')
+        .setDescription('Définir un stock')
+        .addStringOption(option =>
+            option.setName('objet')
+                .setDescription('Nom de l’objet')
+                .setRequired(true))
+        .addIntegerOption(option =>
+            option.setName('quantite')
+                .setDescription('Nouvelle quantité')
+                .setRequired(true))
 
 ].map(command => command.toJSON());
+
+// ================= ENREGISTREMENT COMMANDES =================
 
 const rest = new REST({ version: '10' }).setToken(config.token);
 
 (async () => {
+
     try {
 
         await rest.put(
@@ -84,138 +134,293 @@ const rest = new REST({ version: '10' }).setToken(config.token);
             { body: commands }
         );
 
-        console.log('Commandes enregistrées.');
+        console.log('✅ Commandes enregistrées.');
 
     } catch (error) {
+
         console.error(error);
+
     }
+
 })();
 
+// ================= READY =================
+
 client.once('ready', () => {
-    console.log(`${client.user.tag} est en ligne.`);
+
+    console.log(`✅ ${client.user.tag} est en ligne.`);
+
 });
 
-client.on('interactionCreate', async interaction => {
+// ================= PERMISSIONS =================
 
-    if (!interaction.isChatInputCommand()) return;
+function hasPermission(interaction) {
 
-    const hasPermission = interaction.member.roles.cache.some(
-        r => config.allowedRoles.includes(r.name)
+    return interaction.member.roles.cache.some(
+        role => config.allowedRoles.includes(role.name)
     );
+
+}
+
+// ================= LOGS =================
+
+function sendLog(interaction, message) {
 
     const logsChannel = interaction.guild.channels.cache.find(
         c => c.name === config.logChannelName
     );
 
-    if (
-        (
-            interaction.commandName === 'ajouter' ||
-            interaction.commandName === 'retirer'
-        ) &&
-        !hasPermission
-    ) {
-        return interaction.reply({
-            content: '❌ Tu n’as pas la permission.',
-            ephemeral: true
-        });
+    if (logsChannel) {
+        logsChannel.send(message);
     }
 
-    // AJOUTER
+}
+
+// ================= INTERACTIONS =================
+
+client.on('interactionCreate', async interaction => {
+
+    if (!interaction.isChatInputCommand()) return;
+
+    // ================= AJOUTER =================
 
     if (interaction.commandName === 'ajouter') {
 
+        if (!hasPermission(interaction)) {
+            return interaction.reply({
+                content: '❌ Permission refusée.',
+                ephemeral: true
+            });
+        }
+
         const objet = interaction.options.getString('objet');
         const quantite = interaction.options.getInteger('quantite');
 
-        if (!stocks[objet]) {
-            stocks[objet] = 0;
-        }
+        db.get(
+            `SELECT * FROM stocks WHERE item = ?`,
+            [objet],
+            (err, row) => {
 
-        stocks[objet] += quantite;
+                if (row) {
 
-        saveStocks();
+                    const newQuantity = row.quantity + quantite;
 
-        const embed = new EmbedBuilder()
-            .setTitle('📦 Stock ajouté')
-            .setDescription(
-                `✅ ${quantite} ${objet} ajouté(s).\n\nStock actuel : ${stocks[objet]}`
-            )
-            .setColor('Green');
+                    db.run(
+                        `UPDATE stocks SET quantity = ? WHERE item = ?`,
+                        [newQuantity, objet]
+                    );
 
-        await interaction.reply({
-            embeds: [embed]
-        });
+                } else {
 
-        if (logsChannel) {
-            logsChannel.send(
-                `📥 ${interaction.user.username} a ajouté ${quantite} ${objet}`
-            );
-        }
+                    db.run(
+                        `INSERT INTO stocks(item, quantity) VALUES(?, ?)`,
+                        [objet, quantite]
+                    );
+
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('📦 Stock ajouté')
+                    .setDescription(`✅ ${quantite} ${objet} ajouté(s).`)
+                    .setColor('Green');
+
+                interaction.reply({
+                    embeds: [embed]
+                });
+
+                sendLog(
+                    interaction,
+                    `📥 ${interaction.user.username} a ajouté ${quantite} ${objet}`
+                );
+
+            }
+        );
     }
 
-    // RETIRER
+    // ================= RETIRER =================
 
     if (interaction.commandName === 'retirer') {
 
+        if (!hasPermission(interaction)) {
+            return interaction.reply({
+                content: '❌ Permission refusée.',
+                ephemeral: true
+            });
+        }
+
         const objet = interaction.options.getString('objet');
         const quantite = interaction.options.getInteger('quantite');
 
-        if (!stocks[objet]) {
-            stocks[objet] = 0;
-        }
+        db.get(
+            `SELECT * FROM stocks WHERE item = ?`,
+            [objet],
+            (err, row) => {
 
-        stocks[objet] -= quantite;
+                if (!row) {
 
-        if (stocks[objet] < 0) {
-            stocks[objet] = 0;
-        }
+                    return interaction.reply({
+                        content: '❌ Item introuvable.',
+                        ephemeral: true
+                    });
 
-        saveStocks();
+                }
 
-        const embed = new EmbedBuilder()
-            .setTitle('📦 Stock retiré')
-            .setDescription(
-                `❌ ${quantite} ${objet} retiré(s).\n\nStock actuel : ${stocks[objet]}`
-            )
-            .setColor('Red');
+                let newQuantity = row.quantity - quantite;
 
-        await interaction.reply({
-            embeds: [embed]
-        });
+                if (newQuantity < 0) {
+                    newQuantity = 0;
+                }
 
-        if (logsChannel) {
-            logsChannel.send(
-                `📤 ${interaction.user.username} a retiré ${quantite} ${objet}`
-            );
-        }
+                db.run(
+                    `UPDATE stocks SET quantity = ? WHERE item = ?`,
+                    [newQuantity, objet]
+                );
+
+                const embed = new EmbedBuilder()
+                    .setTitle('📦 Stock retiré')
+                    .setDescription(`❌ ${quantite} ${objet} retiré(s).`)
+                    .setColor('Red');
+
+                interaction.reply({
+                    embeds: [embed]
+                });
+
+                sendLog(
+                    interaction,
+                    `📤 ${interaction.user.username} a retiré ${quantite} ${objet}`
+                );
+
+            }
+        );
     }
 
-    // STOCK
+    // ================= STOCK =================
 
     if (interaction.commandName === 'stock') {
 
-        let description = '';
+        db.all(
+            `SELECT * FROM stocks ORDER BY item ASC`,
+            [],
+            (err, rows) => {
 
-        for (const item in stocks) {
-            description += `📦 **${item}** : ${stocks[item]}\n`;
+                if (!rows.length) {
+
+                    return interaction.reply({
+                        content: '📦 Aucun stock enregistré.'
+                    });
+
+                }
+
+                let description = '';
+
+                rows.forEach(row => {
+
+                    description += `📦 **${row.item}** : ${row.quantity}\n`;
+
+                });
+
+                const embed = new EmbedBuilder()
+                    .setTitle('📦 Inventaire Hells Legion')
+                    .setDescription(description)
+                    .setColor('Blue')
+                    .setFooter({
+                        text: 'SQLite Inventory System'
+                    });
+
+                interaction.reply({
+                    embeds: [embed]
+                });
+
+            }
+        );
+    }
+
+    // ================= SUPPRIMER ITEM =================
+
+    if (interaction.commandName === 'supprimeritem') {
+
+        if (!hasPermission(interaction)) {
+            return interaction.reply({
+                content: '❌ Permission refusée.',
+                ephemeral: true
+            });
         }
 
-        if (description === '') {
-            description = 'Aucun stock enregistré.';
+        const objet = interaction.options.getString('objet');
+
+        db.run(
+            `DELETE FROM stocks WHERE item = ?`,
+            [objet],
+            function () {
+
+                if (this.changes === 0) {
+
+                    return interaction.reply({
+                        content: '❌ Item introuvable.',
+                        ephemeral: true
+                    });
+
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle('🗑️ Item supprimé')
+                    .setDescription(`❌ ${objet} supprimé du stock.`)
+                    .setColor('DarkRed');
+
+                interaction.reply({
+                    embeds: [embed]
+                });
+
+                sendLog(
+                    interaction,
+                    `🗑️ ${interaction.user.username} a supprimé ${objet}`
+                );
+
+            }
+        );
+    }
+
+    // ================= SET STOCK =================
+
+    if (interaction.commandName === 'setstock') {
+
+        if (!hasPermission(interaction)) {
+            return interaction.reply({
+                content: '❌ Permission refusée.',
+                ephemeral: true
+            });
         }
+
+        const objet = interaction.options.getString('objet');
+        const quantite = interaction.options.getInteger('quantite');
+
+        db.run(
+            `
+            INSERT INTO stocks(item, quantity)
+            VALUES(?, ?)
+            ON CONFLICT(item)
+            DO UPDATE SET quantity = excluded.quantity
+            `,
+            [objet, quantite]
+        );
 
         const embed = new EmbedBuilder()
-            .setTitle('📦 Inventaire')
-            .setDescription(description)
-            .setColor('Blue')
-            .setFooter({
-                text: 'Hells Legion Inventory'
-            });
+            .setTitle('⚙️ Stock modifié')
+            .setDescription(`📦 ${objet} = ${quantite}`)
+            .setColor('Orange');
 
-        await interaction.reply({
+        interaction.reply({
             embeds: [embed]
         });
+
+        sendLog(
+            interaction,
+            `⚙️ ${interaction.user.username} a défini ${objet} à ${quantite}`
+        );
     }
+
 });
+
+// ================= LOGIN =================
 
 client.login(config.token);
