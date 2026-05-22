@@ -12,8 +12,8 @@ const {
 } = require('discord.js');
 
 const Database = require('better-sqlite3');
-
 const express = require('express');
+
 const app = express();
 
 // ================= WEB SERVER =================
@@ -63,12 +63,12 @@ CREATE TABLE IF NOT EXISTS stocks (
 )
 `).run();
 
-console.log("✅ SQLite V4 connecté.");
+console.log("✅ SQLite connecté.");
 
 // ================= CATEGORIES =================
 
 const categories = {
-    ressources: "🔩 Ressources",
+    ressources: "🔨 Ressources",
     medical: "💊 Médical",
     armes: "🔫 Armurerie",
     vehicules: "🚗 Véhicules",
@@ -100,7 +100,7 @@ const commands = [
                 .setDescription('Catégorie')
                 .setRequired(true)
                 .addChoices(
-                    { name: '🔩 Ressources', value: 'ressources' },
+                    { name: '🔨 Ressources', value: 'ressources' },
                     { name: '💊 Médical', value: 'medical' },
                     { name: '🔫 Armurerie', value: 'armes' },
                     { name: '🚗 Véhicules', value: 'vehicules' },
@@ -125,12 +125,12 @@ const commands = [
         .setDescription('Supprimer un item')
         .addStringOption(option =>
             option.setName('objet')
-                .setDescription('Nom')
+                .setDescription('Nom de l’objet')
                 .setRequired(true))
 
 ].map(command => command.toJSON());
 
-// ================= REGISTER =================
+// ================= REGISTER COMMANDS =================
 
 const rest = new REST({ version: '10' }).setToken(config.token);
 
@@ -146,7 +146,7 @@ const rest = new REST({ version: '10' }).setToken(config.token);
             { body: commands }
         );
 
-        console.log("✅ Commandes V4 enregistrées.");
+        console.log("✅ Commandes enregistrées.");
 
     } catch (err) {
 
@@ -188,7 +188,7 @@ function sendLog(interaction, message) {
 
 }
 
-// ================= INVENTAIRE EMBED =================
+// ================= EMBED =================
 
 function createMainEmbed() {
 
@@ -205,22 +205,19 @@ function createMainEmbed() {
         .setDescription(`
 Bienvenue dans le système de stockage.
 
-🔩 Ressources
+🔨 Ressources
 💊 Médical
 🔫 Armurerie
 🚗 Véhicules
 🍔 Nourriture
 📦 Divers
 `)
-        .addFields(
-            {
-                name: '📊 Statistiques',
-                value:
+        .addFields({
+            name: '📊 Statistiques',
+            value:
 `📦 Items : ${totalItems}
-📈 Quantité totale : ${totalQuantity}`,
-                inline: false
-            }
-        )
+📈 Quantité totale : ${totalQuantity}`
+        })
         .setColor('#8B0000')
         .setFooter({
             text: 'Inventory System V4'
@@ -232,22 +229,49 @@ Bienvenue dans le système de stockage.
 
 function createButtons() {
 
-    return new ActionRowBuilder()
-        .addComponents(
+    return [
 
-            new ButtonBuilder()
-                .setCustomId('view_stock')
-                .setLabel('Voir Stock')
-                .setEmoji('📦')
-                .setStyle(ButtonStyle.Primary),
+        new ActionRowBuilder()
+            .addComponents(
 
-            new ButtonBuilder()
-                .setCustomId('refresh_stock')
-                .setLabel('Actualiser')
-                .setEmoji('🔄')
-                .setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder()
+                    .setCustomId('view_stock')
+                    .setLabel('Voir Stock')
+                    .setEmoji('📦')
+                    .setStyle(ButtonStyle.Primary),
 
-        );
+                new ButtonBuilder()
+                    .setCustomId('refresh_stock')
+                    .setLabel('Actualiser')
+                    .setEmoji('🔄')
+                    .setStyle(ButtonStyle.Secondary)
+
+            ),
+
+        new ActionRowBuilder()
+            .addComponents(
+
+                new ButtonBuilder()
+                    .setCustomId('add_stock')
+                    .setLabel('Ajouter')
+                    .setEmoji('➕')
+                    .setStyle(ButtonStyle.Success),
+
+                new ButtonBuilder()
+                    .setCustomId('remove_stock')
+                    .setLabel('Retirer')
+                    .setEmoji('➖')
+                    .setStyle(ButtonStyle.Danger),
+
+                new ButtonBuilder()
+                    .setCustomId('delete_stock')
+                    .setLabel('Supprimer')
+                    .setEmoji('🗑️')
+                    .setStyle(ButtonStyle.Secondary)
+
+            )
+
+    ];
 
 }
 
@@ -265,7 +289,7 @@ function createCategoryMenu() {
                     {
                         label: 'Ressources',
                         value: 'ressources',
-                        emoji: '🔩'
+                        emoji: '🔨'
                     },
                     {
                         label: 'Médical',
@@ -313,7 +337,7 @@ client.on('interactionCreate', async interaction => {
             return interaction.reply({
                 embeds: [createMainEmbed()],
                 components: [
-                    createButtons(),
+                    ...createButtons(),
                     createCategoryMenu()
                 ]
             });
@@ -518,16 +542,58 @@ ${categories[row.category] || '📦'} **${row.item}**
 
         }
 
-        // REFRESH
+        // ACTUALISER
 
         if (interaction.customId === 'refresh_stock') {
 
             return interaction.update({
                 embeds: [createMainEmbed()],
                 components: [
-                    createButtons(),
+                    ...createButtons(),
                     createCategoryMenu()
                 ]
+            });
+
+        }
+
+        // AJOUTER
+
+        if (interaction.customId === 'add_stock') {
+
+            return interaction.reply({
+                content:
+`📥 Utilise :
+
+/ajouter`,
+                ephemeral: true
+            });
+
+        }
+
+        // RETIRER
+
+        if (interaction.customId === 'remove_stock') {
+
+            return interaction.reply({
+                content:
+`📤 Utilise :
+
+/retirer`,
+                ephemeral: true
+            });
+
+        }
+
+        // SUPPRIMER
+
+        if (interaction.customId === 'delete_stock') {
+
+            return interaction.reply({
+                content:
+`🗑️ Utilise :
+
+/supprimeritem`,
+                ephemeral: true
             });
 
         }
