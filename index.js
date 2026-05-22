@@ -11,8 +11,7 @@ const {
     StringSelectMenuBuilder,
     ModalBuilder,
     TextInputBuilder,
-    TextInputStyle,
-    InteractionResponseFlags
+    TextInputStyle
 } = require('discord.js');
 
 const Database = require('better-sqlite3');
@@ -127,30 +126,6 @@ client.once('clientReady', () => {
     console.log(`✅ ${client.user.tag} connecté.`);
 
 });
-
-// ================= PERMISSIONS =================
-
-function hasPermission(interaction) {
-
-    return interaction.member.roles.cache.some(
-        role => config.allowedRoles.includes(role.name)
-    );
-
-}
-
-// ================= LOGS =================
-
-function sendLog(interaction, message) {
-
-    const logsChannel = interaction.guild.channels.cache.find(
-        c => c.name === config.logChannelName
-    );
-
-    if (logsChannel) {
-        logsChannel.send(message);
-    }
-
-}
 
 // ================= EMBED =================
 
@@ -298,7 +273,7 @@ client.on('interactionCreate', async interaction => {
 
     try {
 
-        // ================= SLASH COMMAND =================
+        // ================= COMMAND =================
 
         if (interaction.isChatInputCommand()) {
 
@@ -333,7 +308,7 @@ client.on('interactionCreate', async interaction => {
 
                     return interaction.reply({
                         content: '📦 Aucun stock enregistré.',
-                        flags: InteractionResponseFlags.Ephemeral
+                        ephemeral: true
                     });
 
                 }
@@ -357,7 +332,7 @@ ${categories[row.category]} **${row.item}**
 
                 return interaction.reply({
                     embeds: [embed],
-                    flags: InteractionResponseFlags.Ephemeral
+                    ephemeral: true
                 });
 
             }
@@ -504,7 +479,7 @@ ${categories[row.category]} **${row.item}**
                     components: [
                         createCategoryMenu('add_category_select')
                     ],
-                    flags: InteractionResponseFlags.Ephemeral
+                    ephemeral: true
                 });
 
             }
@@ -528,7 +503,7 @@ ${categories[row.category]} **${row.item}**
 
                     return interaction.reply({
                         content: '❌ Item introuvable.',
-                        flags: InteractionResponseFlags.Ephemeral
+                        ephemeral: true
                     });
 
                 }
@@ -556,7 +531,7 @@ ${categories[row.category]} **${row.item}**
 `)
                     .setColor('Red');
 
-                interaction.reply({
+                return interaction.reply({
                     embeds: [embed]
                 });
 
@@ -603,7 +578,7 @@ ${categories[row.category]} **${row.item}**
 
                     return interaction.reply({
                         content: '❌ Aucun item trouvé.',
-                        flags: InteractionResponseFlags.Ephemeral
+                        ephemeral: true
                     });
 
                 }
@@ -619,14 +594,14 @@ ${categories[row.category]} **${row.item}**
 
                 return interaction.reply({
                     embeds: [embed],
-                    flags: InteractionResponseFlags.Ephemeral
+                    ephemeral: true
                 });
 
             }
 
         }
 
-        // ================= SELECT MENUS =================
+        // ================= SELECT MENU =================
 
         if (interaction.isStringSelectMenu()) {
 
@@ -669,7 +644,7 @@ ${categories[row.category]} **${row.item}**
 
                 return interaction.reply({
                     embeds: [embed],
-                    flags: InteractionResponseFlags.Ephemeral
+                    ephemeral: true
                 });
 
             }
@@ -686,7 +661,7 @@ ${categories[row.category]} **${row.item}**
 
                     return interaction.reply({
                         content: '❌ Données expirées.',
-                        flags: InteractionResponseFlags.Ephemeral
+                        ephemeral: true
                     });
 
                 }
