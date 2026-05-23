@@ -803,7 +803,7 @@ process.on('uncaughtException', console.error);
 
 let lastPing = Date.now();
 
-client.on('ready', () => {
+client.on('clientReady', () => {
     lastPing = Date.now();
 });
 
