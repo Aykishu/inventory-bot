@@ -48,6 +48,23 @@ const client = new Client({
     intents: [GatewayIntentBits.Guilds]
 });
 
+// ================= CONNECTION EVENTS =================
+
+client.on('disconnect', () => {
+    console.log('❌ Bot déconnecté.');
+});
+
+client.on('reconnecting', () => {
+    console.log('🔄 Reconnexion...');
+});
+
+client.on('resume', () => {
+    console.log('✅ Session reprise.');
+});
+
+client.on('error', console.error);
+client.on('warn', console.warn);
+
 // ================= DATABASE =================
 
 const db = new Database('stocks.db');
@@ -127,7 +144,7 @@ const commands = [
 
 ].map(command => command.toJSON());
 
-// ================= REGISTER =================
+// ================= REGISTER COMMANDS =================
 
 const rest = new REST({ version: '10' }).setToken(config.token);
 
@@ -155,13 +172,13 @@ const rest = new REST({ version: '10' }).setToken(config.token);
 
 // ================= READY =================
 
-client.once('ready', () => {
+client.once('clientReady', () => {
 
     console.log(`✅ ${client.user.tag} connecté.`);
 
 });
 
-// ================= EMBED =================
+// ================= MAIN EMBED =================
 
 function createMainEmbed() {
 
@@ -193,7 +210,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V14'
+            text: 'Inventory System V16'
         });
 
 }
@@ -301,13 +318,39 @@ function createCategoryMenu(customId = 'category_select') {
 
 }
 
+// ================= LOG FUNCTION =================
+
+async function sendLog(interaction, embed) {
+
+    try {
+
+        const logChannel = interaction.guild.channels.cache.find(
+            c => c.name === config.logChannelName
+        );
+
+        if (logChannel) {
+
+            await logChannel.send({
+                embeds: [embed]
+            });
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+}
+
 // ================= INTERACTIONS =================
 
 client.on('interactionCreate', async interaction => {
 
     try {
 
-        // ================= SLASH =================
+        // ================= SLASH COMMAND =================
 
         if (interaction.isChatInputCommand()) {
 
@@ -493,7 +536,7 @@ ${categories[row.category]} **${row.item}**
 
         if (interaction.isModalSubmit()) {
 
-            // ADD STOCK
+            // ADD MODAL
 
             if (interaction.customId === 'add_stock_modal') {
 
@@ -527,7 +570,7 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // REMOVE STOCK
+            // REMOVE MODAL
 
             if (interaction.customId === 'remove_stock_modal') {
 
@@ -568,9 +611,22 @@ ${categories[row.category]} **${row.item}**
                     flags: 64
                 });
 
+                const embed = new EmbedBuilder()
+                    .setTitle('📤 STOCK RETIRÉ')
+                    .setDescription(`
+👤 Membre : ${interaction.user}
+
+📦 Item : **${objet}**
+➖ Quantité retirée : **${quantite}**
+📉 Stock restant : **${newQuantity}**
+`)
+                    .setColor('Red');
+
+                sendLog(interaction, embed);
+
             }
 
-            // DELETE STOCK
+            // DELETE MODAL
 
             if (interaction.customId === 'delete_stock_modal') {
 
@@ -595,14 +651,25 @@ ${categories[row.category]} **${row.item}**
                     WHERE item = ?
                 `).run(objet);
 
-                return safeReply(interaction, {
+                await safeReply(interaction, {
                     content: '✅ Item supprimé.',
                     flags: 64
                 });
 
+                const embed = new EmbedBuilder()
+                    .setTitle('🗑️ ITEM SUPPRIMÉ')
+                    .setDescription(`
+👤 Membre : ${interaction.user}
+
+📦 Item supprimé : **${objet}**
+`)
+                    .setColor('DarkRed');
+
+                sendLog(interaction, embed);
+
             }
 
-            // SEARCH STOCK
+            // SEARCH MODAL
 
             if (interaction.customId === 'search_stock_modal') {
 
@@ -688,7 +755,7 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // ADD CATEGORY
+            // ADD CATEGORY SELECT
 
             if (interaction.customId === 'add_category_select') {
 
@@ -742,8 +809,6 @@ ${categories[row.category]} **${row.item}**
                     components: []
                 });
 
-                // LOG CHANNEL
-
                 const embed = new EmbedBuilder()
                     .setTitle('📥 STOCK AJOUTÉ')
                     .setDescription(`
@@ -755,17 +820,7 @@ ${categories[row.category]} **${row.item}**
 `)
                     .setColor('Green');
 
-                const logChannel = interaction.guild.channels.cache.find(
-                    c => c.name === config.logChannelName
-                );
-
-                if (logChannel) {
-
-                    logChannel.send({
-                        embeds: [embed]
-                    }).catch(console.error);
-
-                }
+                sendLog(interaction, embed);
 
             }
 
@@ -779,7 +834,7 @@ ${categories[row.category]} **${row.item}**
 
 });
 
-// ================= ERROR HANDLER =================
+// ================= ERROR HANDLERS =================
 
 process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
