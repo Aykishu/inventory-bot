@@ -392,11 +392,38 @@ client.on('interactionCreate', async interaction => {
                     });
                 }
 
-                let description = '';
+  // ================= REGROUPEMENT PAR CATÉGORIE =================
 
-                rows.forEach(row => {
-                    description += `\n${categories[row.category]} **${row.item}**\n└ 📦 ${row.quantity}\n`;
-                });
+const grouped = {};
+
+rows.forEach(row => {
+
+    if (!grouped[row.category]) {
+        grouped[row.category] = [];
+    }
+
+    grouped[row.category].push(row);
+
+});
+
+// ================= DESCRIPTION =================
+
+let description = '';
+
+for (const category in grouped) {
+
+    description += `\n━━━━━━━━━━━━━━\n`;
+    description += `${categories[category].toUpperCase()}\n`;
+    description += `━━━━━━━━━━━━━━\n`;
+
+    grouped[category].forEach(item => {
+
+        description += `└ 📦 ${item.item} : **${item.quantity}**\n`;
+
+    });
+
+    description += '\n';
+}
 
                 const embed = new EmbedBuilder()
                     .setTitle('📦 STOCK COMPLET')
