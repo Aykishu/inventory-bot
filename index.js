@@ -14,8 +14,8 @@ const {
     TextInputStyle
 } = require('discord.js');
 
-const Database = require('better-sqlite3');
 const express = require('express');
+const mongoose = require('mongoose');
 
 const app = express();
 
@@ -34,6 +34,7 @@ app.listen(process.env.PORT || 3000, () => {
 const config = {
 
     token: process.env.TOKEN,
+    mongoUri: process.env.MONGO_URI,
 
     clientId: "1507287568440627261",
     guildId: "1478420890051018765",
@@ -65,29 +66,49 @@ client.on('resume', () => {
 client.on('error', console.error);
 client.on('warn', console.warn);
 
-// ================= DATABASE =================
+// ================= MONGODB =================
 
-const db = new Database('stocks.db');
+mongoose.connect(config.mongoUri)
+.then(() => {
+    console.log('✅ MongoDB connecté.');
+})
+.catch(console.error);
 
-db.prepare(`
-CREATE TABLE IF NOT EXISTS stocks (
-    item TEXT PRIMARY KEY,
-    quantity INTEGER NOT NULL,
-    category TEXT NOT NULL
-)
-`).run();
+// ================= SCHEMA =================
 
-console.log("✅ SQLite connecté.");
+const stockSchema = new mongoose.Schema({
+
+    item: {
+        type: String,
+        required: true,
+        unique: true
+    },
+
+    quantity: {
+        type: Number,
+        required: true
+    },
+
+    category: {
+        type: String,
+        required: true
+    }
+
+});
+
+const Stock = mongoose.model('Stock', stockSchema);
 
 // ================= CATEGORIES =================
 
 const categories = {
+
     ressources: "🔨 Ressources",
     medical: "💊 Médical",
     armes: "🔫 Armurerie",
     vehicules: "🚗 Véhicules",
     nourriture: "🍔 Nourriture",
     divers: "📦 Divers"
+
 };
 
 // ================= TEMP STORAGE =================
@@ -144,7 +165,7 @@ const commands = [
 
 ].map(command => command.toJSON());
 
-// ================= REGISTER COMMANDS =================
+// ================= REGISTER =================
 
 const rest = new REST({ version: '10' }).setToken(config.token);
 
@@ -178,17 +199,22 @@ client.once('clientReady', () => {
 
 });
 
-// ================= MAIN EMBED =================
+// ================= EMBED =================
 
-function createMainEmbed() {
+async function createMainEmbed() {
 
-    const totalItems = db.prepare(`
-        SELECT COUNT(*) as count FROM stocks
-    `).get().count;
+    const totalItems = await Stock.countDocuments();
 
-    const totalQuantity = db.prepare(`
-        SELECT SUM(quantity) as total FROM stocks
-    `).get().total || 0;
+    const totalQuantityResult = await Stock.aggregate([
+        {
+            $group: {
+                _id: null,
+                total: { $sum: "$quantity" }
+            }
+        }
+    ]);
+
+    const totalQuantity = totalQuantityResult[0]?.total || 0;
 
     return new EmbedBuilder()
         .setTitle('📦 HELLS LEGION • INVENTAIRE')
@@ -210,7 +236,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V16'
+            text: 'Inventory System V17 MongoDB'
         });
 
 }
@@ -350,14 +376,16 @@ client.on('interactionCreate', async interaction => {
 
     try {
 
-        // ================= SLASH COMMAND =================
+        // ================= SLASH =================
 
         if (interaction.isChatInputCommand()) {
 
             if (interaction.commandName === 'inventaire') {
 
+                const embed = await createMainEmbed();
+
                 return safeReply(interaction, {
-                    embeds: [createMainEmbed()],
+                    embeds: [embed],
                     components: [
                         ...createButtons(),
                         createCategoryMenu()
@@ -376,10 +404,10 @@ client.on('interactionCreate', async interaction => {
 
             if (interaction.customId === 'view_stock') {
 
-                const rows = db.prepare(`
-                    SELECT * FROM stocks
-                    ORDER BY category ASC, item ASC
-                `).all();
+                const rows = await Stock.find().sort({
+                    category: 1,
+                    item: 1
+                });
 
                 if (rows.length === 0) {
 
@@ -418,8 +446,10 @@ ${categories[row.category]} **${row.item}**
 
             if (interaction.customId === 'refresh_stock') {
 
+                const embed = await createMainEmbed();
+
                 return safeUpdate(interaction, {
-                    embeds: [createMainEmbed()],
+                    embeds: [embed],
                     components: [
                         ...createButtons(),
                         createCategoryMenu()
@@ -536,7 +566,7 @@ ${categories[row.category]} **${row.item}**
 
         if (interaction.isModalSubmit()) {
 
-            // ADD MODAL
+            // ADD
 
             if (interaction.customId === 'add_stock_modal') {
 
@@ -570,7 +600,7 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // REMOVE MODAL
+            // REMOVE
 
             if (interaction.customId === 'remove_stock_modal') {
 
@@ -580,10 +610,9 @@ ${categories[row.category]} **${row.item}**
                     interaction.fields.getTextInputValue('quantite')
                 );
 
-                const item = db.prepare(`
-                    SELECT * FROM stocks
-                    WHERE item = ?
-                `).get(objet);
+                const item = await Stock.findOne({
+                    item: objet
+                });
 
                 if (!item) {
 
@@ -594,17 +623,13 @@ ${categories[row.category]} **${row.item}**
 
                 }
 
-                let newQuantity = item.quantity - quantite;
+                item.quantity -= quantite;
 
-                if (newQuantity < 0) {
-                    newQuantity = 0;
+                if (item.quantity < 0) {
+                    item.quantity = 0;
                 }
 
-                db.prepare(`
-                    UPDATE stocks
-                    SET quantity = ?
-                    WHERE item = ?
-                `).run(newQuantity, objet);
+                await item.save();
 
                 await safeReply(interaction, {
                     content: '✅ Stock retiré.',
@@ -618,7 +643,7 @@ ${categories[row.category]} **${row.item}**
 
 📦 Item : **${objet}**
 ➖ Quantité retirée : **${quantite}**
-📉 Stock restant : **${newQuantity}**
+📉 Stock restant : **${item.quantity}**
 `)
                     .setColor('Red');
 
@@ -626,16 +651,15 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // DELETE MODAL
+            // DELETE
 
             if (interaction.customId === 'delete_stock_modal') {
 
                 const objet = interaction.fields.getTextInputValue('objet');
 
-                const item = db.prepare(`
-                    SELECT * FROM stocks
-                    WHERE item = ?
-                `).get(objet);
+                const item = await Stock.findOne({
+                    item: objet
+                });
 
                 if (!item) {
 
@@ -646,10 +670,9 @@ ${categories[row.category]} **${row.item}**
 
                 }
 
-                db.prepare(`
-                    DELETE FROM stocks
-                    WHERE item = ?
-                `).run(objet);
+                await Stock.deleteOne({
+                    item: objet
+                });
 
                 await safeReply(interaction, {
                     content: '✅ Item supprimé.',
@@ -669,16 +692,18 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // SEARCH MODAL
+            // SEARCH
 
             if (interaction.customId === 'search_stock_modal') {
 
                 const objet = interaction.fields.getTextInputValue('objet');
 
-                const item = db.prepare(`
-                    SELECT * FROM stocks
-                    WHERE item LIKE ?
-                `).get(`%${objet}%`);
+                const item = await Stock.findOne({
+                    item: {
+                        $regex: objet,
+                        $options: 'i'
+                    }
+                });
 
                 if (!item) {
 
@@ -707,7 +732,7 @@ ${categories[row.category]} **${row.item}**
 
         }
 
-        // ================= SELECT MENU =================
+        // ================= SELECT MENUS =================
 
         if (interaction.isStringSelectMenu()) {
 
@@ -717,11 +742,11 @@ ${categories[row.category]} **${row.item}**
 
                 const category = interaction.values[0];
 
-                const rows = db.prepare(`
-                    SELECT * FROM stocks
-                    WHERE category = ?
-                    ORDER BY item ASC
-                `).all(category);
+                const rows = await Stock.find({
+                    category
+                }).sort({
+                    item: 1
+                });
 
                 let description = '';
 
@@ -744,7 +769,7 @@ ${categories[row.category]} **${row.item}**
                 }
 
                 const embed = new EmbedBuilder()
-                    .setTitle(`${categories[category]}`)
+                    .setTitle(categories[category])
                     .setDescription(description)
                     .setColor('#8B0000');
 
@@ -755,7 +780,7 @@ ${categories[row.category]} **${row.item}**
 
             }
 
-            // ADD CATEGORY SELECT
+            // ADD CATEGORY
 
             if (interaction.customId === 'add_category_select') {
 
@@ -772,32 +797,22 @@ ${categories[row.category]} **${row.item}**
 
                 }
 
-                const item = db.prepare(`
-                    SELECT * FROM stocks
-                    WHERE item = ?
-                `).get(pending.objet);
+                let item = await Stock.findOne({
+                    item: pending.objet
+                });
 
                 if (item) {
 
-                    db.prepare(`
-                        UPDATE stocks
-                        SET quantity = ?
-                        WHERE item = ?
-                    `).run(
-                        item.quantity + pending.quantite,
-                        pending.objet
-                    );
+                    item.quantity += pending.quantite;
+                    await item.save();
 
                 } else {
 
-                    db.prepare(`
-                        INSERT INTO stocks(item, quantity, category)
-                        VALUES(?, ?, ?)
-                    `).run(
-                        pending.objet,
-                        pending.quantite,
+                    await Stock.create({
+                        item: pending.objet,
+                        quantity: pending.quantite,
                         category
-                    );
+                    });
 
                 }
 
