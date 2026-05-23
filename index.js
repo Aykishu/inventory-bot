@@ -121,7 +121,7 @@ client.once('ready', () => {
 
 });
 
-// ================= EMBED =================
+// ================= MAIN EMBED =================
 
 function createMainEmbed() {
 
@@ -153,7 +153,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V11'
+            text: 'Inventory System V12'
         });
 
 }
@@ -267,7 +267,7 @@ client.on('interactionCreate', async interaction => {
 
     try {
 
-        // ================= SLASH COMMAND =================
+        // ================= SLASH =================
 
         if (interaction.isChatInputCommand()) {
 
@@ -302,7 +302,7 @@ client.on('interactionCreate', async interaction => {
 
                     return interaction.reply({
                         content: '📦 Aucun stock enregistré.',
-                        ephemeral: true
+                        flags: 64
                     });
 
                 }
@@ -326,7 +326,7 @@ ${categories[row.category]} **${row.item}**
 
                 return interaction.reply({
                     embeds: [embed],
-                    ephemeral: true
+                    flags: 64
                 });
 
             }
@@ -370,7 +370,7 @@ ${categories[row.category]} **${row.item}**
                     new ActionRowBuilder().addComponents(quantiteInput)
                 );
 
-                return await interaction.showModal(modal);
+                return interaction.showModal(modal);
 
             }
 
@@ -399,7 +399,7 @@ ${categories[row.category]} **${row.item}**
                     new ActionRowBuilder().addComponents(quantiteInput)
                 );
 
-                return await interaction.showModal(modal);
+                return interaction.showModal(modal);
 
             }
 
@@ -421,7 +421,7 @@ ${categories[row.category]} **${row.item}**
                     new ActionRowBuilder().addComponents(objetInput)
                 );
 
-                return await interaction.showModal(modal);
+                return interaction.showModal(modal);
 
             }
 
@@ -443,7 +443,7 @@ ${categories[row.category]} **${row.item}**
                     new ActionRowBuilder().addComponents(objetInput)
                 );
 
-                return await interaction.showModal(modal);
+                return interaction.showModal(modal);
 
             }
 
@@ -467,7 +467,7 @@ ${categories[row.category]} **${row.item}**
 
                     return interaction.reply({
                         content: '❌ Quantité invalide.',
-                        ephemeral: true
+                        flags: 64
                     });
 
                 }
@@ -482,7 +482,7 @@ ${categories[row.category]} **${row.item}**
                     components: [
                         createCategoryMenu('add_category_select')
                     ],
-                    ephemeral: true
+                    flags: 64
                 });
 
             }
@@ -506,7 +506,7 @@ ${categories[row.category]} **${row.item}**
 
                     return interaction.reply({
                         content: '❌ Item introuvable.',
-                        ephemeral: true
+                        flags: 64
                     });
 
                 }
@@ -523,6 +523,11 @@ ${categories[row.category]} **${row.item}**
                     WHERE item = ?
                 `).run(newQuantity, objet);
 
+                await interaction.reply({
+                    content: '✅ Stock retiré.',
+                    flags: 64
+                });
+
                 const embed = new EmbedBuilder()
                     .setTitle('📤 STOCK RETIRÉ')
                     .setDescription(`
@@ -533,11 +538,6 @@ ${categories[row.category]} **${row.item}**
 📉 Stock restant : **${newQuantity}**
 `)
                     .setColor('Red');
-
-                await interaction.reply({
-                    content: '✅ Stock retiré.',
-                    ephemeral: true
-                });
 
                 const logChannel = interaction.guild.channels.cache.find(
                     c => c.name === config.logChannelName
@@ -570,7 +570,7 @@ ${categories[row.category]} **${row.item}**
 
                     return interaction.reply({
                         content: '❌ Item introuvable.',
-                        ephemeral: true
+                        flags: 64
                     });
 
                 }
@@ -580,6 +580,11 @@ ${categories[row.category]} **${row.item}**
                     WHERE item = ?
                 `).run(objet);
 
+                await interaction.reply({
+                    content: '✅ Item supprimé.',
+                    flags: 64
+                });
+
                 const embed = new EmbedBuilder()
                     .setTitle('🗑️ ITEM SUPPRIMÉ')
                     .setDescription(`
@@ -588,11 +593,6 @@ ${categories[row.category]} **${row.item}**
 📦 Item supprimé : **${objet}**
 `)
                     .setColor('DarkRed');
-
-                await interaction.reply({
-                    content: '✅ Item supprimé.',
-                    ephemeral: true
-                });
 
                 const logChannel = interaction.guild.channels.cache.find(
                     c => c.name === config.logChannelName
@@ -625,7 +625,7 @@ ${categories[row.category]} **${row.item}**
 
                     return interaction.reply({
                         content: '❌ Aucun item trouvé.',
-                        ephemeral: true
+                        flags: 64
                     });
 
                 }
@@ -641,7 +641,7 @@ ${categories[row.category]} **${row.item}**
 
                 return interaction.reply({
                     embeds: [embed],
-                    ephemeral: true
+                    flags: 64
                 });
 
             }
@@ -651,6 +651,52 @@ ${categories[row.category]} **${row.item}**
         // ================= SELECT MENU =================
 
         if (interaction.isStringSelectMenu()) {
+
+            // CATEGORY VIEW
+
+            if (interaction.customId === 'category_select') {
+
+                const category = interaction.values[0];
+
+                const rows = db.prepare(`
+                    SELECT * FROM stocks
+                    WHERE category = ?
+                    ORDER BY item ASC
+                `).all(category);
+
+                let description = '';
+
+                if (rows.length === 0) {
+
+                    description = '📦 Aucun item dans cette catégorie.';
+
+                } else {
+
+                    rows.forEach(row => {
+
+                        description += `
+📦 **${row.item}**
+└ Quantité : ${row.quantity}
+
+`;
+
+                    });
+
+                }
+
+                const embed = new EmbedBuilder()
+                    .setTitle(`${categories[category]}`)
+                    .setDescription(description)
+                    .setColor('#8B0000');
+
+                return interaction.reply({
+                    embeds: [embed],
+                    flags: 64
+                });
+
+            }
+
+            // ADD CATEGORY
 
             if (interaction.customId === 'add_category_select') {
 
@@ -662,7 +708,7 @@ ${categories[row.category]} **${row.item}**
 
                     return interaction.reply({
                         content: '❌ Données expirées.',
-                        ephemeral: true
+                        flags: 64
                     });
 
                 }
@@ -698,6 +744,12 @@ ${categories[row.category]} **${row.item}**
 
                 pendingAdds.delete(interaction.user.id);
 
+                await interaction.update({
+                    content: '✅ Stock ajouté.',
+                    embeds: [],
+                    components: []
+                });
+
                 const embed = new EmbedBuilder()
                     .setTitle('📥 STOCK AJOUTÉ')
                     .setDescription(`
@@ -708,12 +760,6 @@ ${categories[row.category]} **${row.item}**
 📂 Catégorie : **${categories[category]}**
 `)
                     .setColor('Green');
-
-                await interaction.update({
-                    content: '✅ Stock ajouté.',
-                    embeds: [],
-                    components: []
-                });
 
                 const logChannel = interaction.guild.channels.cache.find(
                     c => c.name === config.logChannelName
