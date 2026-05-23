@@ -121,7 +121,7 @@ client.once('ready', () => {
 
 });
 
-// ================= MAIN EMBED =================
+// ================= EMBED =================
 
 function createMainEmbed() {
 
@@ -153,7 +153,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V12'
+            text: 'Inventory System V13'
         });
 
 }
@@ -261,6 +261,44 @@ function createCategoryMenu(customId = 'category_select') {
 
 }
 
+// ================= SAFE REPLY =================
+
+async function safeReply(interaction, data) {
+
+    try {
+
+        if (!interaction.replied && !interaction.deferred) {
+
+            return await interaction.reply(data);
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+}
+
+async function safeUpdate(interaction, data) {
+
+    try {
+
+        if (!interaction.replied && !interaction.deferred) {
+
+            return await interaction.update(data);
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+}
+
 // ================= INTERACTIONS =================
 
 client.on('interactionCreate', async interaction => {
@@ -273,7 +311,7 @@ client.on('interactionCreate', async interaction => {
 
             if (interaction.commandName === 'inventaire') {
 
-                return interaction.reply({
+                return safeReply(interaction, {
                     embeds: [createMainEmbed()],
                     components: [
                         ...createButtons(),
@@ -300,7 +338,7 @@ client.on('interactionCreate', async interaction => {
 
                 if (rows.length === 0) {
 
-                    return interaction.reply({
+                    return safeReply(interaction, {
                         content: '📦 Aucun stock enregistré.',
                         flags: 64
                     });
@@ -324,7 +362,7 @@ ${categories[row.category]} **${row.item}**
                     .setDescription(description)
                     .setColor('#8B0000');
 
-                return interaction.reply({
+                return safeReply(interaction, {
                     embeds: [embed],
                     flags: 64
                 });
@@ -335,7 +373,7 @@ ${categories[row.category]} **${row.item}**
 
             if (interaction.customId === 'refresh_stock') {
 
-                return interaction.update({
+                return safeUpdate(interaction, {
                     embeds: [createMainEmbed()],
                     components: [
                         ...createButtons(),
@@ -465,7 +503,7 @@ ${categories[row.category]} **${row.item}**
 
                 if (isNaN(quantite) || quantite <= 0) {
 
-                    return interaction.reply({
+                    return safeReply(interaction, {
                         content: '❌ Quantité invalide.',
                         flags: 64
                     });
@@ -477,7 +515,7 @@ ${categories[row.category]} **${row.item}**
                     quantite
                 });
 
-                return interaction.reply({
+                return safeReply(interaction, {
                     content: '📂 Choisis une catégorie :',
                     components: [
                         createCategoryMenu('add_category_select')
@@ -504,7 +542,7 @@ ${categories[row.category]} **${row.item}**
 
                 if (!item) {
 
-                    return interaction.reply({
+                    return safeReply(interaction, {
                         content: '❌ Item introuvable.',
                         flags: 64
                     });
@@ -523,7 +561,7 @@ ${categories[row.category]} **${row.item}**
                     WHERE item = ?
                 `).run(newQuantity, objet);
 
-                await interaction.reply({
+                await safeReply(interaction, {
                     content: '✅ Stock retiré.',
                     flags: 64
                 });
@@ -551,8 +589,6 @@ ${categories[row.category]} **${row.item}**
 
                 }
 
-                return;
-
             }
 
             // DELETE STOCK
@@ -568,7 +604,7 @@ ${categories[row.category]} **${row.item}**
 
                 if (!item) {
 
-                    return interaction.reply({
+                    return safeReply(interaction, {
                         content: '❌ Item introuvable.',
                         flags: 64
                     });
@@ -580,7 +616,7 @@ ${categories[row.category]} **${row.item}**
                     WHERE item = ?
                 `).run(objet);
 
-                await interaction.reply({
+                await safeReply(interaction, {
                     content: '✅ Item supprimé.',
                     flags: 64
                 });
@@ -606,8 +642,6 @@ ${categories[row.category]} **${row.item}**
 
                 }
 
-                return;
-
             }
 
             // SEARCH STOCK
@@ -623,7 +657,7 @@ ${categories[row.category]} **${row.item}**
 
                 if (!item) {
 
-                    return interaction.reply({
+                    return safeReply(interaction, {
                         content: '❌ Aucun item trouvé.',
                         flags: 64
                     });
@@ -639,7 +673,7 @@ ${categories[row.category]} **${row.item}**
 `)
                     .setColor('Blue');
 
-                return interaction.reply({
+                return safeReply(interaction, {
                     embeds: [embed],
                     flags: 64
                 });
@@ -689,7 +723,7 @@ ${categories[row.category]} **${row.item}**
                     .setDescription(description)
                     .setColor('#8B0000');
 
-                return interaction.reply({
+                return safeReply(interaction, {
                     embeds: [embed],
                     flags: 64
                 });
@@ -706,7 +740,7 @@ ${categories[row.category]} **${row.item}**
 
                 if (!pending) {
 
-                    return interaction.reply({
+                    return safeReply(interaction, {
                         content: '❌ Données expirées.',
                         flags: 64
                     });
@@ -744,7 +778,7 @@ ${categories[row.category]} **${row.item}**
 
                 pendingAdds.delete(interaction.user.id);
 
-                await interaction.update({
+                await safeUpdate(interaction, {
                     content: '✅ Stock ajouté.',
                     embeds: [],
                     components: []
@@ -784,6 +818,11 @@ ${categories[row.category]} **${row.item}**
     }
 
 });
+
+// ================= ERROR HANDLER =================
+
+process.on('unhandledRejection', console.error);
+process.on('uncaughtException', console.error);
 
 // ================= LOGIN =================
 
