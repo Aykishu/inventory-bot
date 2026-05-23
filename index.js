@@ -799,35 +799,19 @@ client.on('interactionCreate', async interaction => {
 process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
 
-// ================= KEEP ALIVE =================
-
-let lastPing = Date.now();
-
-client.on('clientReady', () => {
-    lastPing = Date.now();
-});
-
-client.ws.on('HeartbeatAck', () => {
-    lastPing = Date.now();
-});
-
 // ================= AUTO RECONNECT =================
 
-setInterval(async () => {
+client.on('disconnect', async () => {
 
-    const diff = Date.now() - lastPing;
+    console.log('⚠️ Déconnexion détectée.');
 
-    // 2 minutes sans heartbeat Discord
+    try {
 
-    if (diff > 120000) {
+        await client.destroy();
 
-        console.log('⚠️ Heartbeat perdu, reconnexion forcée...');
+    } catch {}
 
-        try {
-
-            await client.destroy();
-
-        } catch {}
+    setTimeout(async () => {
 
         try {
 
@@ -840,9 +824,10 @@ setInterval(async () => {
             console.error('❌ Erreur reconnexion :', err);
 
         }
-    }
 
-}, 30000);
+    }, 5000);
+
+});
 
 // ================= LOGIN =================
 
