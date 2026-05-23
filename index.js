@@ -38,14 +38,6 @@ const config = {
     clientId: "1507287568440627261",
     guildId: "1478420890051018765",
 
-    allowedRoles: [
-        "Président",
-        "Vice-président",
-        "Sergent d'armes",
-        "Trésorier",
-        "Secrétaire"
-    ],
-
     logChannelName: "📦・│log-stockage"
 
 };
@@ -161,7 +153,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V10'
+            text: 'Inventory System V11'
         });
 
 }
@@ -505,15 +497,6 @@ ${categories[row.category]} **${row.item}**
                     interaction.fields.getTextInputValue('quantite')
                 );
 
-                if (isNaN(quantite) || quantite <= 0) {
-
-                    return interaction.reply({
-                        content: '❌ Quantité invalide.',
-                        ephemeral: true
-                    });
-
-                }
-
                 const item = db.prepare(`
                     SELECT * FROM stocks
                     WHERE item = ?
@@ -551,22 +534,24 @@ ${categories[row.category]} **${row.item}**
 `)
                     .setColor('Red');
 
+                await interaction.reply({
+                    content: '✅ Stock retiré.',
+                    ephemeral: true
+                });
+
                 const logChannel = interaction.guild.channels.cache.find(
                     c => c.name === config.logChannelName
                 );
 
                 if (logChannel) {
 
-                    await logChannel.send({
+                    logChannel.send({
                         embeds: [embed]
-                    });
+                    }).catch(console.error);
 
                 }
 
-                return interaction.reply({
-                    content: '✅ Stock retiré.',
-                    ephemeral: true
-                });
+                return;
 
             }
 
@@ -604,22 +589,24 @@ ${categories[row.category]} **${row.item}**
 `)
                     .setColor('DarkRed');
 
+                await interaction.reply({
+                    content: '✅ Item supprimé.',
+                    ephemeral: true
+                });
+
                 const logChannel = interaction.guild.channels.cache.find(
                     c => c.name === config.logChannelName
                 );
 
                 if (logChannel) {
 
-                    await logChannel.send({
+                    logChannel.send({
                         embeds: [embed]
-                    });
+                    }).catch(console.error);
 
                 }
 
-                return interaction.reply({
-                    content: '✅ Item supprimé.',
-                    ephemeral: true
-                });
+                return;
 
             }
 
@@ -664,52 +651,6 @@ ${categories[row.category]} **${row.item}**
         // ================= SELECT MENU =================
 
         if (interaction.isStringSelectMenu()) {
-
-            // CATEGORY VIEW
-
-            if (interaction.customId === 'category_select') {
-
-                const category = interaction.values[0];
-
-                const rows = db.prepare(`
-                    SELECT * FROM stocks
-                    WHERE category = ?
-                    ORDER BY item ASC
-                `).all(category);
-
-                let description = '';
-
-                if (rows.length === 0) {
-
-                    description = '📦 Aucun item dans cette catégorie.';
-
-                } else {
-
-                    rows.forEach(row => {
-
-                        description += `
-📦 **${row.item}**
-└ Quantité : ${row.quantity}
-
-`;
-
-                    });
-
-                }
-
-                const embed = new EmbedBuilder()
-                    .setTitle(`${categories[category]}`)
-                    .setDescription(description)
-                    .setColor('#8B0000');
-
-                return interaction.reply({
-                    embeds: [embed],
-                    ephemeral: true
-                });
-
-            }
-
-            // ADD CATEGORY
 
             if (interaction.customId === 'add_category_select') {
 
@@ -768,23 +709,23 @@ ${categories[row.category]} **${row.item}**
 `)
                     .setColor('Green');
 
+                await interaction.update({
+                    content: '✅ Stock ajouté.',
+                    embeds: [],
+                    components: []
+                });
+
                 const logChannel = interaction.guild.channels.cache.find(
                     c => c.name === config.logChannelName
                 );
 
                 if (logChannel) {
 
-                    await logChannel.send({
+                    logChannel.send({
                         embeds: [embed]
-                    });
+                    }).catch(console.error);
 
                 }
-
-                return interaction.update({
-                    content: '✅ Stock ajouté.',
-                    embeds: [],
-                    components: []
-                });
 
             }
 
