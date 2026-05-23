@@ -1,3 +1,5 @@
+// ================= IMPORTS =================
+
 const {
     Client,
     GatewayIntentBits,
@@ -17,9 +19,9 @@ const {
 const express = require('express');
 const mongoose = require('mongoose');
 
-const app = express();
+// ================= EXPRESS =================
 
-// ================= WEB SERVER =================
+const app = express();
 
 app.get('/', (req, res) => {
     res.send('Hells Legion Inventory Online');
@@ -36,10 +38,10 @@ const config = {
     token: process.env.TOKEN,
     mongoUri: process.env.MONGO_URI,
 
-    clientId: "1507287568440627261",
-    guildId: "1478420890051018765",
+    clientId: '1507287568440627261',
+    guildId: '1478420890051018765',
 
-    logChannelName: "📦・│log-stockage"
+    logChannelName: '📦・│log-stockage'
 
 };
 
@@ -102,12 +104,12 @@ const Stock = mongoose.model('Stock', stockSchema);
 
 const categories = {
 
-    ressources: "🔨 Ressources",
-    medical: "💊 Médical",
-    armes: "🔫 Armurerie",
-    vehicules: "🚗 Véhicules",
-    nourriture: "🍔 Nourriture",
-    divers: "📦 Divers"
+    ressources: '🔨 Ressources',
+    medical: '💊 Médical',
+    armes: '🔫 Armurerie',
+    vehicules: '🚗 Véhicules',
+    nourriture: '🍔 Nourriture',
+    divers: '📦 Divers'
 
 };
 
@@ -122,19 +124,14 @@ async function safeReply(interaction, data) {
     try {
 
         if (interaction.deferred || interaction.replied) {
-
             return await interaction.followUp(data).catch(() => {});
-
         }
 
         return await interaction.reply(data).catch(() => {});
 
     } catch (err) {
-
         console.error(err);
-
     }
-
 }
 
 async function safeUpdate(interaction, data) {
@@ -142,17 +139,12 @@ async function safeUpdate(interaction, data) {
     try {
 
         if (!interaction.replied && !interaction.deferred) {
-
             return await interaction.update(data).catch(() => {});
-
         }
 
     } catch (err) {
-
         console.error(err);
-
     }
-
 }
 
 // ================= COMMANDES =================
@@ -181,12 +173,10 @@ const rest = new REST({ version: '10' }).setToken(config.token);
             { body: commands }
         );
 
-        console.log("✅ Commandes enregistrées.");
+        console.log('✅ Commandes enregistrées.');
 
     } catch (err) {
-
         console.error(err);
-
     }
 
 })();
@@ -194,9 +184,7 @@ const rest = new REST({ version: '10' }).setToken(config.token);
 // ================= READY =================
 
 client.once('clientReady', () => {
-
     console.log(`✅ ${client.user.tag} connecté.`);
-
 });
 
 // ================= EMBED =================
@@ -209,7 +197,7 @@ async function createMainEmbed() {
         {
             $group: {
                 _id: null,
-                total: { $sum: "$quantity" }
+                total: { $sum: '$quantity' }
             }
         }
     ]);
@@ -236,9 +224,8 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V17 MongoDB'
+            text: 'Inventory System V18 MongoDB'
         });
-
 }
 
 // ================= BUTTONS =================
@@ -294,7 +281,6 @@ function createButtons() {
             )
 
     ];
-
 }
 
 // ================= CATEGORY MENU =================
@@ -341,7 +327,6 @@ function createCategoryMenu(customId = 'category_select') {
                 ])
 
         );
-
 }
 
 // ================= LOG FUNCTION =================
@@ -355,19 +340,12 @@ async function sendLog(interaction, embed) {
         );
 
         if (logChannel) {
-
-            await logChannel.send({
-                embeds: [embed]
-            });
-
+            await logChannel.send({ embeds: [embed] });
         }
 
     } catch (err) {
-
         console.error(err);
-
     }
-
 }
 
 // ================= INTERACTIONS =================
@@ -376,7 +354,7 @@ client.on('interactionCreate', async interaction => {
 
     try {
 
-        // ================= SLASH =================
+        // ================= SLASH COMMAND =================
 
         if (interaction.isChatInputCommand()) {
 
@@ -391,9 +369,7 @@ client.on('interactionCreate', async interaction => {
                         createCategoryMenu()
                     ]
                 });
-
             }
-
         }
 
         // ================= BUTTONS =================
@@ -410,24 +386,16 @@ client.on('interactionCreate', async interaction => {
                 });
 
                 if (rows.length === 0) {
-
                     return safeReply(interaction, {
                         content: '📦 Aucun stock enregistré.',
                         flags: 64
                     });
-
                 }
 
                 let description = '';
 
                 rows.forEach(row => {
-
-                    description += `
-${categories[row.category]} **${row.item}**
-└ 📦 ${row.quantity}
-
-`;
-
+                    description += `\n${categories[row.category]} **${row.item}**\n└ 📦 ${row.quantity}\n`;
                 });
 
                 const embed = new EmbedBuilder()
@@ -439,7 +407,6 @@ ${categories[row.category]} **${row.item}**
                     embeds: [embed],
                     flags: 64
                 });
-
             }
 
             // REFRESH
@@ -455,7 +422,6 @@ ${categories[row.category]} **${row.item}**
                         createCategoryMenu()
                     ]
                 });
-
             }
 
             // ADD
@@ -484,7 +450,6 @@ ${categories[row.category]} **${row.item}**
                 );
 
                 return interaction.showModal(modal);
-
             }
 
             // REMOVE
@@ -513,7 +478,6 @@ ${categories[row.category]} **${row.item}**
                 );
 
                 return interaction.showModal(modal);
-
             }
 
             // DELETE
@@ -535,10 +499,9 @@ ${categories[row.category]} **${row.item}**
                 );
 
                 return interaction.showModal(modal);
-
             }
 
-            // SEARCH
+             // SEARCH
 
             if (interaction.customId === 'search_stock') {
 
@@ -557,16 +520,14 @@ ${categories[row.category]} **${row.item}**
                 );
 
                 return interaction.showModal(modal);
-
             }
-
         }
 
         // ================= MODALS =================
 
         if (interaction.isModalSubmit()) {
 
-            // ADD
+            // ADD STOCK
 
             if (interaction.customId === 'add_stock_modal') {
 
@@ -582,7 +543,6 @@ ${categories[row.category]} **${row.item}**
                         content: '❌ Quantité invalide.',
                         flags: 64
                     });
-
                 }
 
                 pendingAdds.set(interaction.user.id, {
@@ -597,10 +557,9 @@ ${categories[row.category]} **${row.item}**
                     ],
                     flags: 64
                 });
-
             }
 
-            // REMOVE
+            // REMOVE STOCK
 
             if (interaction.customId === 'remove_stock_modal') {
 
@@ -620,7 +579,6 @@ ${categories[row.category]} **${row.item}**
                         content: '❌ Item introuvable.',
                         flags: 64
                     });
-
                 }
 
                 item.quantity -= quantite;
@@ -648,10 +606,9 @@ ${categories[row.category]} **${row.item}**
                     .setColor('Red');
 
                 sendLog(interaction, embed);
-
             }
 
-            // DELETE
+            // DELETE STOCK
 
             if (interaction.customId === 'delete_stock_modal') {
 
@@ -667,7 +624,6 @@ ${categories[row.category]} **${row.item}**
                         content: '❌ Item introuvable.',
                         flags: 64
                     });
-
                 }
 
                 await Stock.deleteOne({
@@ -689,10 +645,9 @@ ${categories[row.category]} **${row.item}**
                     .setColor('DarkRed');
 
                 sendLog(interaction, embed);
-
             }
 
-            // SEARCH
+            // SEARCH STOCK
 
             if (interaction.customId === 'search_stock_modal') {
 
@@ -711,7 +666,6 @@ ${categories[row.category]} **${row.item}**
                         content: '❌ Aucun item trouvé.',
                         flags: 64
                     });
-
                 }
 
                 const embed = new EmbedBuilder()
@@ -727,16 +681,14 @@ ${categories[row.category]} **${row.item}**
                     embeds: [embed],
                     flags: 64
                 });
-
             }
-
         }
 
         // ================= SELECT MENUS =================
 
         if (interaction.isStringSelectMenu()) {
 
-            // CATEGORY VIEW
+            // VIEW CATEGORY
 
             if (interaction.customId === 'category_select') {
 
@@ -763,9 +715,7 @@ ${categories[row.category]} **${row.item}**
 └ Quantité : ${row.quantity}
 
 `;
-
                     });
-
                 }
 
                 const embed = new EmbedBuilder()
@@ -777,7 +727,6 @@ ${categories[row.category]} **${row.item}**
                     embeds: [embed],
                     flags: 64
                 });
-
             }
 
             // ADD CATEGORY
@@ -794,7 +743,6 @@ ${categories[row.category]} **${row.item}**
                         content: '❌ Données expirées.',
                         flags: 64
                     });
-
                 }
 
                 let item = await Stock.findOne({
@@ -813,7 +761,6 @@ ${categories[row.category]} **${row.item}**
                         quantity: pending.quantite,
                         category
                     });
-
                 }
 
                 pendingAdds.delete(interaction.user.id);
@@ -836,9 +783,7 @@ ${categories[row.category]} **${row.item}**
                     .setColor('Green');
 
                 sendLog(interaction, embed);
-
             }
-
         }
 
     } catch (err) {
@@ -853,6 +798,20 @@ ${categories[row.category]} **${row.item}**
 
 process.on('unhandledRejection', console.error);
 process.on('uncaughtException', console.error);
+
+// ================= AUTO RECONNECT =================
+
+setInterval(() => {
+
+    if (!client.isReady()) {
+
+        console.log('⚠️ Bot déconnecté, tentative reconnexion...');
+
+        client.login(config.token).catch(console.error);
+
+    }
+
+}, 30000);
 
 // ================= LOGIN =================
 
