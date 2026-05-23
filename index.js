@@ -77,6 +77,46 @@ const categories = {
 
 const pendingAdds = new Map();
 
+// ================= SAFE FUNCTIONS =================
+
+async function safeReply(interaction, data) {
+
+    try {
+
+        if (interaction.deferred || interaction.replied) {
+
+            return await interaction.followUp(data).catch(() => {});
+
+        }
+
+        return await interaction.reply(data).catch(() => {});
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+}
+
+async function safeUpdate(interaction, data) {
+
+    try {
+
+        if (!interaction.replied && !interaction.deferred) {
+
+            return await interaction.update(data).catch(() => {});
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+}
+
 // ================= COMMANDES =================
 
 const commands = [
@@ -87,7 +127,7 @@ const commands = [
 
 ].map(command => command.toJSON());
 
-// ================= REGISTER COMMANDS =================
+// ================= REGISTER =================
 
 const rest = new REST({ version: '10' }).setToken(config.token);
 
@@ -153,7 +193,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V13'
+            text: 'Inventory System V14'
         });
 
 }
@@ -258,44 +298,6 @@ function createCategoryMenu(customId = 'category_select') {
                 ])
 
         );
-
-}
-
-// ================= SAFE REPLY =================
-
-async function safeReply(interaction, data) {
-
-    try {
-
-        if (!interaction.replied && !interaction.deferred) {
-
-            return await interaction.reply(data);
-
-        }
-
-    } catch (err) {
-
-        console.error(err);
-
-    }
-
-}
-
-async function safeUpdate(interaction, data) {
-
-    try {
-
-        if (!interaction.replied && !interaction.deferred) {
-
-            return await interaction.update(data);
-
-        }
-
-    } catch (err) {
-
-        console.error(err);
-
-    }
 
 }
 
@@ -566,29 +568,6 @@ ${categories[row.category]} **${row.item}**
                     flags: 64
                 });
 
-                const embed = new EmbedBuilder()
-                    .setTitle('📤 STOCK RETIRÉ')
-                    .setDescription(`
-👤 Membre : ${interaction.user}
-
-📦 Item : **${objet}**
-➖ Quantité retirée : **${quantite}**
-📉 Stock restant : **${newQuantity}**
-`)
-                    .setColor('Red');
-
-                const logChannel = interaction.guild.channels.cache.find(
-                    c => c.name === config.logChannelName
-                );
-
-                if (logChannel) {
-
-                    logChannel.send({
-                        embeds: [embed]
-                    }).catch(console.error);
-
-                }
-
             }
 
             // DELETE STOCK
@@ -616,31 +595,10 @@ ${categories[row.category]} **${row.item}**
                     WHERE item = ?
                 `).run(objet);
 
-                await safeReply(interaction, {
+                return safeReply(interaction, {
                     content: '✅ Item supprimé.',
                     flags: 64
                 });
-
-                const embed = new EmbedBuilder()
-                    .setTitle('🗑️ ITEM SUPPRIMÉ')
-                    .setDescription(`
-👤 Membre : ${interaction.user}
-
-📦 Item supprimé : **${objet}**
-`)
-                    .setColor('DarkRed');
-
-                const logChannel = interaction.guild.channels.cache.find(
-                    c => c.name === config.logChannelName
-                );
-
-                if (logChannel) {
-
-                    logChannel.send({
-                        embeds: [embed]
-                    }).catch(console.error);
-
-                }
 
             }
 
@@ -783,6 +741,8 @@ ${categories[row.category]} **${row.item}**
                     embeds: [],
                     components: []
                 });
+
+                // LOG CHANNEL
 
                 const embed = new EmbedBuilder()
                     .setTitle('📥 STOCK AJOUTÉ')
