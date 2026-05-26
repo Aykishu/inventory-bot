@@ -108,6 +108,7 @@ const categories = {
 	ressources_rares: ' Ressources rares',
 	rack: '🗄️ Rack',
     medical: '💊 Médical',
+	hazmat: '☣️ Hazmat',
     armes: '🔫 Armurerie',
     vehicules: '🚗 Véhicules',
     nourriture: '🍔 Nourriture',
@@ -240,6 +241,7 @@ Bienvenue dans le système de stockage.
 💎 Ressources rares
 🗄️ Rack
 💊 Médical
+☣️ Hazmat
 🔫 Armurerie
 🚗 Véhicules
 🍔 Nourriture
@@ -347,7 +349,13 @@ function createCategoryMenu(customId = 'category_select') {
                         value: 'medical',
                         emoji: '💊'
                     },
-
+					
+                    {
+                        label: 'Hazmat',
+                        value: 'hazmat',
+                        emoji: '☣️'
+                    },
+					
                     {
                         label: 'Armurerie',
                         value: 'armurerie',
