@@ -105,6 +105,8 @@ const Stock = mongoose.model('Stock', stockSchema);
 const categories = {
 
     ressources: '🔨 Ressources',
+	ressources_rares: ' Ressources rares',
+	rack: '🗄️ Rack',
     medical: '💊 Médical',
     armes: '🔫 Armurerie',
     vehicules: '🚗 Véhicules',
@@ -112,6 +114,31 @@ const categories = {
     divers: '📦 Divers'
 
 };
+
+// ================= ITEM EMOJIS =================
+
+function getItemEmoji(itemName) {
+
+    const name = itemName.toLowerCase();
+
+    if (name.includes('bois')) return '🪵';
+    if (name.includes('pierre')) return '🪨';
+    if (name.includes('charbon')) return '⚫';
+    if (name.includes('fer')) return '⛓️';
+    if (name.includes('ferraille')) return '🔩';
+    if (name.includes('eau')) return '💧';
+    if (name.includes('bandage')) return '🩹';
+    if (name.includes('medkit')) return '💉';
+    if (name.includes('essence')) return '⛽';
+    if (name.includes('munition')) return '🔸';
+    if (name.includes('burger')) return '🍔';
+    if (name.includes('pain')) return '🥖';
+    if (name.includes('voiture')) return '🚗';
+    if (name.includes('camion')) return '🚚';
+    if (name.includes('arme')) return '🔫';
+
+    return '📦';
+}
 
 // ================= TEMP STORAGE =================
 
@@ -210,6 +237,8 @@ async function createMainEmbed() {
 Bienvenue dans le système de stockage.
 
 🔨 Ressources
+💎 Ressources rares
+🗄️ Rack
 💊 Médical
 🔫 Armurerie
 🚗 Véhicules
@@ -224,7 +253,7 @@ Bienvenue dans le système de stockage.
         })
         .setColor('#8B0000')
         .setFooter({
-            text: 'Inventory System V18 MongoDB'
+            text: 'Inventaire by Aykishu'
         });
 }
 
@@ -294,39 +323,59 @@ function createCategoryMenu(customId = 'category_select') {
                 .setCustomId(customId)
                 .setPlaceholder('📂 Choisir une catégorie')
                 .addOptions([
+
                     {
                         label: 'Ressources',
                         value: 'ressources',
                         emoji: '🔨'
                     },
+
+                    {
+                        label: 'Ressources rares',
+                        value: 'ressources_rares',
+                        emoji: '💎'
+                    },
+
+                    {
+                        label: 'Rack',
+                        value: 'rack',
+                        emoji: '🗄️'
+                    },
+
                     {
                         label: 'Médical',
                         value: 'medical',
                         emoji: '💊'
                     },
+
                     {
                         label: 'Armurerie',
-                        value: 'armes',
+                        value: 'armurerie',
                         emoji: '🔫'
                     },
+
                     {
                         label: 'Véhicules',
                         value: 'vehicules',
                         emoji: '🚗'
                     },
+
                     {
                         label: 'Nourriture',
                         value: 'nourriture',
                         emoji: '🍔'
                     },
+
                     {
                         label: 'Divers',
                         value: 'divers',
                         emoji: '📦'
                     }
+
                 ])
 
         );
+
 }
 
 // ================= LOG FUNCTION =================
