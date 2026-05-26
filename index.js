@@ -863,6 +863,7 @@ for (const category in grouped) {
 📦 Item : **${pending.objet}**
 ➕ Quantité : **${pending.quantite}**
 📂 Catégorie : **${categories[category]}**
+📈 Stock restant : **${stock.quantity}**
 `)
                     .setColor('Green');
 
