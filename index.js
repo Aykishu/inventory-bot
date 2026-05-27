@@ -871,6 +871,8 @@ if (interaction.customId === 'add_stock_quantity_modal') {
 
 if (interaction.customId === 'add_category_select') {
 
+	await interaction.deferUpdate();
+	
     const category = interaction.values[0];
 
     pendingCategoryAdds.set(interaction.user.id, category);
@@ -883,7 +885,7 @@ if (interaction.customId === 'add_category_select') {
 
     if (items.length === 0) {
 
-        return safeReply(interaction, {
+        return interaction.followUp({
             content: '❌ Aucun objet dans cette catégorie.',
             flags: 64
         });
@@ -905,7 +907,7 @@ if (interaction.customId === 'add_category_select') {
 
         );
 
-    return safeReply(interaction, {
+    return interaction.followUp({
         content: '📦 Choisis un objet :',
         components: [menu],
         flags: 64
