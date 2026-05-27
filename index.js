@@ -144,6 +144,8 @@ function getItemEmoji(itemName) {
 // ================= TEMP STORAGE =================
 
 const pendingAdds = new Map();
+const pendingCategoryAdds = new Map();
+const pendingItemAdds = new Map();
 
 // ================= SAFE FUNCTIONS =================
 
@@ -512,29 +514,14 @@ for (const category in grouped) {
 
             if (interaction.customId === 'add_stock') {
 
-                const modal = new ModalBuilder()
-                    .setCustomId('add_stock_modal')
-                    .setTitle('📥 Ajouter un item');
-
-                const objetInput = new TextInputBuilder()
-                    .setCustomId('objet')
-                    .setLabel('Nom de l’objet')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true);
-
-                const quantiteInput = new TextInputBuilder()
-                    .setCustomId('quantite')
-                    .setLabel('Quantité')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true);
-
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(objetInput),
-                    new ActionRowBuilder().addComponents(quantiteInput)
-                );
-
-                return interaction.showModal(modal);
-            }
+    return safeReply(interaction, {
+        content: '📂 Choisis une catégorie :',
+        components: [
+            createCategoryMenu('add_category_select')
+        ],
+        flags: 64
+    });
+}
 
             // REMOVE
 
@@ -685,6 +672,7 @@ for (const category in grouped) {
 
 📦 Item : **${objet}**
 ➖ Quantité retirée : **${quantite}**
+📂 Catégorie : **${categories[category]}**
 📉 Stock restant : **${item.quantity}**
 `)
                     .setColor('Red');
@@ -766,6 +754,72 @@ for (const category in grouped) {
                     flags: 64
                 });
             }
+// ================= ADD STOCK QUANTITY =================
+
+if (interaction.customId === 'add_stock_quantity_modal') {
+
+    const quantite = Number(
+        interaction.fields.getTextInputValue('quantite')
+    );
+
+    if (isNaN(quantite) || quantite <= 0) {
+
+        return safeReply(interaction, {
+            content: '❌ Quantité invalide.',
+            flags: 64
+        });
+    }
+
+    const category = pendingCategoryAdds.get(interaction.user.id);
+    const objet = pendingItemAdds.get(interaction.user.id);
+
+    if (!category || !objet) {
+
+        return safeReply(interaction, {
+            content: '❌ Données expirées.',
+            flags: 64
+        });
+    }
+
+    let item = await Stock.findOne({
+        item: objet
+    });
+
+    if (!item) {
+
+        return safeReply(interaction, {
+            content: '❌ Objet introuvable.',
+            flags: 64
+        });
+    }
+
+    item.quantity += quantite;
+
+    await item.save();
+
+    pendingCategoryAdds.delete(interaction.user.id);
+    pendingItemAdds.delete(interaction.user.id);
+
+    await safeReply(interaction, {
+        content: '✅ Stock ajouté.',
+        flags: 64
+    });
+
+    const embed = new EmbedBuilder()
+        .setTitle('📥 STOCK AJOUTÉ')
+        .setDescription(`
+👤 Membre : ${interaction.user}
+
+📦 Item : **${objet}**
+➕ Quantité : **${quantite}**
+📂 Catégorie : **${categories[category]}**
+📈 Stock restant : **${item.quantity}**
+`)
+        .setColor('Green');
+
+    sendLog(interaction, embed);
+}
+			
         }
 
         // ================= SELECT MENUS =================
@@ -813,75 +867,77 @@ for (const category in grouped) {
                 });
             }
 
-            // ADD CATEGORY
+// ================= ADD CATEGORY SELECT =================
 
-            if (interaction.customId === 'add_category_select') {
+if (interaction.customId === 'add_category_select') {
 
-                const category = interaction.values[0];
+    const category = interaction.values[0];
 
-                const pending = pendingAdds.get(interaction.user.id);
+    pendingCategoryAdds.set(interaction.user.id, category);
 
-                if (!pending) {
+    const items = await Stock.find({
+        category
+    }).sort({
+        item: 1
+    });
 
-                    return safeReply(interaction, {
-                        content: '❌ Données expirées.',
-                        flags: 64
-                    });
-                }
+    if (items.length === 0) {
 
-                let item = await Stock.findOne({
-                    item: pending.objet
-                });
-
-                if (item) {
-
-                    item.quantity += pending.quantite;
-                    await item.save();
-
-                } else {
-
-                    await Stock.create({
-                        item: pending.objet,
-                        quantity: pending.quantite,
-                        category
-                    });
-                }
-
-                pendingAdds.delete(interaction.user.id);
-
-const updatedItem = await Stock.findOne({
-    item: pending.objet
-});
-
-await safeUpdate(interaction, {
-    content: '✅ Stock ajouté.',
-    embeds: [],
-    components: []
-});
-
-                const embed = new EmbedBuilder()
-    .setTitle('📥 STOCK AJOUTÉ')
-    .setDescription(`
-👤 Membre : ${interaction.user}
-
-📦 Item : **${pending.objet}**
-➕ Quantité : **${pending.quantite}**
-📂 Catégorie : **${categories[category]}**
-📈 Stock restant : **${updatedItem.quantity}**
-`)
-    .setColor('Green');
-
-                sendLog(interaction, embed);
-            }
-        }
-
-    } catch (err) {
-
-        console.error(err);
-
+        return safeReply(interaction, {
+            content: '❌ Aucun objet dans cette catégorie.',
+            flags: 64
+        });
     }
 
-});
+    const options = items.slice(0, 25).map(item => ({
+        label: item.item,
+        value: item.item,
+        emoji: '📦'
+    }));
+
+    const menu = new ActionRowBuilder()
+        .addComponents(
+
+            new StringSelectMenuBuilder()
+                .setCustomId('add_item_select')
+                .setPlaceholder('📦 Choisir un objet')
+                .addOptions(options)
+
+        );
+
+    return safeReply(interaction, {
+        content: '📦 Choisis un objet :',
+        components: [menu],
+        flags: 64
+    });
+}
+
+// ================= ADD ITEM SELECT =================
+
+if (interaction.customId === 'add_item_select') {
+
+    const item = interaction.values[0];
+
+    pendingItemAdds.set(interaction.user.id, item);
+
+    const modal = new ModalBuilder()
+        .setCustomId('add_stock_quantity_modal')
+        .setTitle('➕ Ajouter du stock');
+
+    const quantityInput = new TextInputBuilder()
+        .setCustomId('quantite')
+        .setLabel('Quantité')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(quantityInput)
+    );
+
+    return interaction.showModal(modal);
+}
+
+
 
 // ================= ERROR HANDLERS =================
 
