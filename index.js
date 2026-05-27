@@ -849,8 +849,6 @@ if (interaction.customId === 'add_stock_quantity_modal') {
 // ================= ADD CATEGORY SELECT =================
 
 if (interaction.customId === 'add_category_select') {
-
-	await interaction.deferUpdate();
 	
     const category = interaction.values[0];
 
@@ -864,7 +862,7 @@ if (interaction.customId === 'add_category_select') {
 
     if (items.length === 0) {
 
-        return interaction.followUp({
+        return safeReply(interaction, {
             content: '❌ Aucun objet dans cette catégorie.',
             flags: 64
         });
@@ -886,7 +884,7 @@ if (interaction.customId === 'add_category_select') {
 
         );
 
-    return interaction.followUp({
+    return safeReply(interaction, {
         content: '📦 Choisis un objet :',
         components: [menu],
         flags: 64
@@ -944,7 +942,7 @@ if (interaction.customId === 'remove_category_select') {
 
     if (items.length === 0) {
 
-        return interaction.followUp({
+        return safeReply(interaction, {
             content: '❌ Aucun objet dans cette catégorie.',
             flags: 64
         });
@@ -966,7 +964,7 @@ if (interaction.customId === 'remove_category_select') {
 
         );
 
-    return interaction.followUp({
+    return safeReply(interaction, {
         content: '📦 Choisis un objet :',
         components: [menu],
         flags: 64
