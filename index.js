@@ -849,11 +849,15 @@ for (const category in grouped) {
 
                 pendingAdds.delete(interaction.user.id);
 
-                await safeUpdate(interaction, {
-                    content: '✅ Stock ajouté.',
-                    embeds: [],
-                    components: []
-                });
+const updatedItem = await Stock.findOne({
+    item: pending.objet
+});
+
+await safeUpdate(interaction, {
+    content: '✅ Stock ajouté.',
+    embeds: [],
+    components: []
+});
 
                 const embed = new EmbedBuilder()
     .setTitle('📥 STOCK AJOUTÉ')
