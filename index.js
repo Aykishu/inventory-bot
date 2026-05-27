@@ -928,8 +928,6 @@ if (interaction.customId === 'add_item_select') {
 
 if (interaction.customId === 'remove_category_select') {
 
-    await interaction.deferUpdate();
-
     const category = interaction.values[0];
 
     pendingCategoryRemoves.set(interaction.user.id, category);
