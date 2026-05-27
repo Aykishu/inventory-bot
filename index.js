@@ -937,8 +937,10 @@ if (interaction.customId === 'add_item_select') {
     return interaction.showModal(modal);
 }
 
-		}
-		
+        }
+
+    } catch (err) {
+        console.error(err);
     }
 
 });
