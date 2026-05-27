@@ -597,39 +597,7 @@ for (const category in grouped) {
         // ================= MODALS =================
 
         if (interaction.isModalSubmit()) {
-
-            // ADD STOCK
-
-            if (interaction.customId === 'add_stock_modal') {
-
-                const objet = interaction.fields.getTextInputValue('objet');
-
-                const quantite = Number(
-                    interaction.fields.getTextInputValue('quantite')
-                );
-
-                if (isNaN(quantite) || quantite <= 0) {
-
-                    return safeReply(interaction, {
-                        content: '❌ Quantité invalide.',
-                        flags: 64
-                    });
-                }
-
-                pendingAdds.set(interaction.user.id, {
-                    objet,
-                    quantite
-                });
-
-                return safeReply(interaction, {
-                    content: '📂 Choisis une catégorie :',
-                    components: [
-                        createCategoryMenu('add_category_select')
-                    ],
-                    flags: 64
-                });
-            }
-
+            
             // REMOVE STOCK
 
             if (interaction.customId === 'remove_stock_modal') {
