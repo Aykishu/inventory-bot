@@ -146,6 +146,8 @@ function getItemEmoji(itemName) {
 const pendingAdds = new Map();
 const pendingCategoryAdds = new Map();
 const pendingItemAdds = new Map();
+const pendingCategoryRemoves = new Map();
+const pendingItemRemoves = new Map();
 
 // ================= SAFE FUNCTIONS =================
 
@@ -527,29 +529,14 @@ for (const category in grouped) {
 
             if (interaction.customId === 'remove_stock') {
 
-                const modal = new ModalBuilder()
-                    .setCustomId('remove_stock_modal')
-                    .setTitle('📤 Retirer un item');
-
-                const objetInput = new TextInputBuilder()
-                    .setCustomId('objet')
-                    .setLabel('Nom de l’objet')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true);
-
-                const quantiteInput = new TextInputBuilder()
-                    .setCustomId('quantite')
-                    .setLabel('Quantité')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true);
-
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(objetInput),
-                    new ActionRowBuilder().addComponents(quantiteInput)
-                );
-
-                return interaction.showModal(modal);
-            }
+    return safeReply(interaction, {
+        content: '📂 Choisis une catégorie :',
+        components: [
+            createCategoryMenu('remove_category_select')
+        ],
+        flags: 64
+    });
+}
 
             // DELETE
 
@@ -598,55 +585,79 @@ for (const category in grouped) {
 
         if (interaction.isModalSubmit()) {
             
-            // REMOVE STOCK
+// ================= REMOVE STOCK QUANTITY =================
 
-            if (interaction.customId === 'remove_stock_modal') {
+if (interaction.customId === 'remove_stock_quantity_modal') {
 
-                const objet = interaction.fields.getTextInputValue('objet');
+    const quantite = Number(
+        interaction.fields.getTextInputValue('quantite')
+    );
 
-                const quantite = Number(
-                    interaction.fields.getTextInputValue('quantite')
-                );
+    if (isNaN(quantite) || quantite <= 0) {
 
-                const item = await Stock.findOne({
-                    item: objet
-                });
+        return safeReply(interaction, {
+            content: '❌ Quantité invalide.',
+            flags: 64
+        });
+    }
 
-                if (!item) {
+    const category = pendingCategoryRemoves.get(interaction.user.id);
+    const objet = pendingItemRemoves.get(interaction.user.id);
 
-                    return safeReply(interaction, {
-                        content: '❌ Item introuvable.',
-                        flags: 64
-                    });
-                }
+    if (!category || !objet) {
 
-                item.quantity -= quantite;
+        return safeReply(interaction, {
+            content: '❌ Données expirées.',
+            flags: 64
+        });
+    }
 
-                if (item.quantity < 0) {
-                    item.quantity = 0;
-                }
+    let item = await Stock.findOne({
+        item: objet
+    });
 
-                await item.save();
+    if (!item) {
 
-                await safeReply(interaction, {
-                    content: '✅ Stock retiré.',
-                    flags: 64
-                });
+        return safeReply(interaction, {
+            content: '❌ Objet introuvable.',
+            flags: 64
+        });
+    }
 
-                const embed = new EmbedBuilder()
-                    .setTitle('📤 STOCK RETIRÉ')
-                    .setDescription(`
+    if (item.quantity < quantite) {
+
+        return safeReply(interaction, {
+            content: '❌ Stock insuffisant.',
+            flags: 64
+        });
+    }
+
+    item.quantity -= quantite;
+
+    await item.save();
+
+    pendingCategoryRemoves.delete(interaction.user.id);
+    pendingItemRemoves.delete(interaction.user.id);
+
+    await safeReply(interaction, {
+        content: '✅ Stock retiré.',
+        flags: 64
+    });
+
+    const embed = new EmbedBuilder()
+        .setTitle('📤 STOCK RETIRÉ')
+        .setDescription(`
 👤 Membre : ${interaction.user}
 
 📦 Item : **${objet}**
 ➖ Quantité retirée : **${quantite}**
-📂 Catégorie : **${categories[item.category]}**
+📂 Catégorie : **${categories[category]}**
 📉 Stock restant : **${item.quantity}**
 `)
-                    .setColor('Red');
+        .setColor('Red');
 
-                sendLog(interaction, embed);
-            }
+    sendLog(interaction, embed);
+}
 
             // DELETE STOCK
 
@@ -914,6 +925,78 @@ if (interaction.customId === 'add_item_select') {
     }
 
 });
+
+// ================= REMOVE CATEGORY SELECT =================
+
+if (interaction.customId === 'remove_category_select') {
+
+    await interaction.deferUpdate();
+
+    const category = interaction.values[0];
+
+    pendingCategoryRemoves.set(interaction.user.id, category);
+
+    const items = await Stock.find({
+        category
+    }).sort({
+        item: 1
+    });
+
+    if (items.length === 0) {
+
+        return interaction.followUp({
+            content: '❌ Aucun objet dans cette catégorie.',
+            flags: 64
+        });
+    }
+
+    const options = items.slice(0, 25).map(item => ({
+        label: item.item,
+        value: item.item,
+        emoji: '📦'
+    }));
+
+    const menu = new ActionRowBuilder()
+        .addComponents(
+
+            new StringSelectMenuBuilder()
+                .setCustomId('remove_item_select')
+                .setPlaceholder('📦 Choisir un objet')
+                .addOptions(options)
+
+        );
+
+    return interaction.followUp({
+        content: '📦 Choisis un objet :',
+        components: [menu],
+        flags: 64
+    });
+}
+
+// ================= REMOVE ITEM SELECT =================
+
+if (interaction.customId === 'remove_item_select') {
+
+    const item = interaction.values[0];
+
+    pendingItemRemoves.set(interaction.user.id, item);
+
+    const modal = new ModalBuilder()
+        .setCustomId('remove_stock_quantity_modal')
+        .setTitle('📤 Retirer du stock');
+
+    const quantityInput = new TextInputBuilder()
+        .setCustomId('quantite')
+        .setLabel('Quantité')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(quantityInput)
+    );
+
+    return await interaction.showModal(modal);
+}
 
 // ================= ERROR HANDLERS =================
 
