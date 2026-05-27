@@ -672,7 +672,7 @@ for (const category in grouped) {
 
 📦 Item : **${objet}**
 ➖ Quantité retirée : **${quantite}**
-📂 Catégorie : **${categories[category]}**
+📂 Catégorie : **${categories[item.category]}**
 📉 Stock restant : **${item.quantity}**
 `)
                     .setColor('Red');
@@ -938,6 +938,10 @@ if (interaction.customId === 'add_item_select') {
 }
 
 		}
+		
+    }
+
+});
 
 // ================= ERROR HANDLERS =================
 
