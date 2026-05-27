@@ -937,7 +937,7 @@ if (interaction.customId === 'add_item_select') {
     return interaction.showModal(modal);
 }
 
-
+		}
 
 // ================= ERROR HANDLERS =================
 
