@@ -856,16 +856,16 @@ for (const category in grouped) {
                 });
 
                 const embed = new EmbedBuilder()
-                    .setTitle('📥 STOCK AJOUTÉ')
-                    .setDescription(`
+    .setTitle('📥 STOCK AJOUTÉ')
+    .setDescription(`
 👤 Membre : ${interaction.user}
 
 📦 Item : **${pending.objet}**
 ➕ Quantité : **${pending.quantite}**
 📂 Catégorie : **${categories[category]}**
-📈 Stock restant : **${stock.quantity}**
+📈 Stock restant : **${updatedItem.quantity}**
 `)
-                    .setColor('Green');
+    .setColor('Green');
 
                 sendLog(interaction, embed);
             }
