@@ -122,18 +122,18 @@ function getItemEmoji(itemName) {
 
     const name = itemName.toLowerCase();
 
-    if (name.includes('bois')) return '🪵';
-    if (name.includes('pierre')) return '🪨';
-    if (name.includes('charbon')) return '⚫';
-    if (name.includes('fer')) return '⛓️';
-    if (name.includes('ferraille')) return '🔩';
-    if (name.includes('eau')) return '💧';
-    if (name.includes('bandage')) return '🩹';
-    if (name.includes('medkit')) return '💉';
-    if (name.includes('essence')) return '⛽';
+    if (name.includes('Bois')) return '🪵';
+    if (name.includes('Pierre')) return '🪨';
+    if (name.includes('Charbon')) return '⚫';
+    if (name.includes('Fer')) return '⛓️';
+    if (name.includes('Ferraille')) return '🔩';
+    if (name.includes('Eau')) return '💧';
+    if (name.includes('Bandage')) return '🩹';
+    if (name.includes('Medkit')) return '💉';
+    if (name.includes('Essence')) return '⛽';
     if (name.includes('munition')) return '🔸';
     if (name.includes('burger')) return '🍔';
-    if (name.includes('pain')) return '🥖';
+    if (name.includes('Pain')) return '🥖';
     if (name.includes('voiture')) return '🚗';
     if (name.includes('camion')) return '🚚';
     if (name.includes('arme')) return '🔫';
