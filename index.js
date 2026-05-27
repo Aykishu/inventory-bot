@@ -916,14 +916,6 @@ if (interaction.customId === 'add_item_select') {
     return interaction.showModal(modal);
 }
 
-        }
-
-    } catch (err) {
-        console.error(err);
-    }
-
-});
-
 // ================= REMOVE CATEGORY SELECT =================
 
 if (interaction.customId === 'remove_category_select') {
@@ -993,6 +985,15 @@ if (interaction.customId === 'remove_item_select') {
 
     return await interaction.showModal(modal);
 }
+
+        }
+
+    } catch (err) {
+        console.error(err);
+    }
+
+});
+
 
 // ================= ERROR HANDLERS =================
 
