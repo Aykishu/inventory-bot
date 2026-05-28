@@ -274,13 +274,11 @@ function createButtons() {
 
                 new ButtonBuilder()
                     .setCustomId('view_stock')
-                    .setLabel('Voir Stock')
                     .setEmoji('📦')
                     .setStyle(ButtonStyle.Primary),
 
                 new ButtonBuilder()
                     .setCustomId('refresh_stock')
-                    .setLabel('Actualiser')
                     .setEmoji('🔄')
                     .setStyle(ButtonStyle.Secondary)
 
@@ -291,31 +289,19 @@ function createButtons() {
 
                 new ButtonBuilder()
                     .setCustomId('add_stock')
-                    .setLabel('Ajouter')
                     .setEmoji('➕')
                     .setStyle(ButtonStyle.Success),
 
                 new ButtonBuilder()
                     .setCustomId('remove_stock')
-                    .setLabel('Retirer')
                     .setEmoji('➖')
                     .setStyle(ButtonStyle.Danger),
 
-                new ButtonBuilder()
-                    .setCustomId('delete_stock')
-                    .setLabel('Supprimer')
-                    .setEmoji('🗑️')
-                    .setStyle(ButtonStyle.Secondary),
-
-                new ButtonBuilder()
-                    .setCustomId('search_stock')
-                    .setLabel('Rechercher')
-                    .setEmoji('🔍')
-                    .setStyle(ButtonStyle.Primary)
 
             )
 
     ];
+
 }
 
 // ================= CATEGORY MENU =================
