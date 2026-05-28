@@ -413,7 +413,6 @@ client.on('interactionCreate', async interaction => {
                     embeds: [embed],
                     components: [
                         ...createButtons(),
-                        createCategoryMenu()
                     ]
                 });
             }
