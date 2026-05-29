@@ -297,11 +297,6 @@ function createButtons() {
                     .setEmoji('🔄')
                     .setStyle(ButtonStyle.Secondary)
 
-            ),
-
-        new ActionRowBuilder()
-            .addComponents(
-
                 new ButtonBuilder()
                     .setCustomId('add_stock')
                     .setEmoji('➕')
