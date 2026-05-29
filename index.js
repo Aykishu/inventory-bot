@@ -295,12 +295,7 @@ function createButtons() {
                 new ButtonBuilder()
                     .setCustomId('refresh_stock')
                     .setEmoji('🔄')
-                    .setStyle(ButtonStyle.Secondary)
-
-            ),
-
-        new ActionRowBuilder()
-            .addComponents(
+                    .setStyle(ButtonStyle.Secondary),
 
                 new ButtonBuilder()
                     .setCustomId('add_stock')
@@ -310,10 +305,20 @@ function createButtons() {
                 new ButtonBuilder()
                     .setCustomId('remove_stock')
                     .setEmoji('➖')
-                    .setStyle(ButtonStyle.Danger),
-
+                    .setStyle(ButtonStyle.Danger)
 
             ),
+
+        new ActionRowBuilder()
+            .addComponents(
+
+                new ButtonBuilder()
+                    .setCustomId('new_item')
+                    .setEmoji('🆕')
+                    .setLabel('Nouvel objet')
+                    .setStyle(ButtonStyle.Secondary)
+
+            )
 
     ];
 
@@ -539,6 +544,19 @@ for (const category in grouped) {
     });
 }
 
+// NEW ITEM
+
+if (interaction.customId === 'new_item') {
+
+    return safeReply(interaction, {
+        content: '📂 Choisis une catégorie :',
+        components: [
+            createCategoryMenu('new_item_category_select')
+        ],
+        flags: 64
+    });
+}
+
             // REMOVE
 
             if (interaction.customId === 'remove_stock') {
@@ -599,6 +617,60 @@ for (const category in grouped) {
 
         if (interaction.isModalSubmit()) {
             
+// ================= NEW ITEM MODAL =================
+
+	if (interaction.customId === 'new_item_modal') {
+
+    const itemName = interaction.fields.getTextInputValue('item');
+
+    const category = pendingCategoryAdds.get(interaction.user.id);
+
+    if (!category) {
+
+        return safeReply(interaction, {
+            content: '❌ Catégorie introuvable.',
+            flags: 64
+        });
+    }
+
+    const exists = await Stock.findOne({
+        item: itemName
+    });
+
+    if (exists) {
+
+        return safeReply(interaction, {
+            content: '❌ Cet objet existe déjà.',
+            flags: 64
+        });
+    }
+
+    await Stock.create({
+        item: itemName,
+        quantity: 0,
+        category
+    });
+
+    pendingCategoryAdds.delete(interaction.user.id);
+
+    await safeReply(interaction, {
+        content: `✅ Objet créé : **${itemName}**`,
+        flags: 64
+    });
+
+    const embed = new EmbedBuilder()
+        .setTitle('🆕 NOUVEL OBJET')
+        .setDescription(`
+👤 Membre : ${interaction.user}
+
+📦 Objet : **${itemName}**
+📂 Catégorie : **${categories[category]}**
+`)
+        .setColor('Blue');
+
+    sendLog(interaction, embed);
+}
+			
 // ================= REMOVE STOCK QUANTITY =================
 
 if (interaction.customId === 'remove_stock_quantity_modal') {
@@ -859,6 +931,31 @@ if (interaction.customId === 'add_stock_quantity_modal') {
                     flags: 64
                 });
             }
+
+// ================= NEW ITEM CATEGORY =================
+
+if (interaction.customId === 'new_item_category_select') {
+
+    const category = interaction.values[0];
+
+    pendingCategoryAdds.set(interaction.user.id, category);
+
+    const modal = new ModalBuilder()
+        .setCustomId('new_item_modal')
+        .setTitle('🆕 Nouvel objet');
+
+    const itemInput = new TextInputBuilder()
+        .setCustomId('item')
+        .setLabel('Nom de l’objet')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+    modal.addComponents(
+        new ActionRowBuilder().addComponents(itemInput)
+    );
+
+    return interaction.showModal(modal);
+}
 
 // ================= ADD CATEGORY SELECT =================
 
