@@ -247,6 +247,7 @@ Bienvenue dans le système de stockage.
 💊 Médical
 ☣️ Hazmat
 🔫 Armurerie
+💥 Munitions
 🚗 Véhicules
 🍔 Nourriture
 📦 Divers
@@ -353,7 +354,13 @@ function createCategoryMenu(customId = 'category_select') {
                     },
 
                     {
-                        label: 'Véhicules',
+                        label: 'Munitions',
+                        value: 'munitions',
+                        emoji: '💥'
+                    },
+
+                    {
+                        label: 'Mécanique',
                         value: 'vehicules',
                         emoji: '🚗'
                     },
