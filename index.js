@@ -162,6 +162,7 @@ const pendingCategoryAdds = new Map();
 const pendingItemAdds = new Map();
 const pendingCategoryRemoves = new Map();
 const pendingItemRemoves = new Map();
+const pendingNewItems = new Map();
 
 // ================= SAFE FUNCTIONS =================
 
@@ -623,7 +624,9 @@ if (interaction.customId === 'new_item') {
 
     const itemName = interaction.fields.getTextInputValue('item');
 
-    const category = pendingCategoryAdds.get(interaction.user.id);
+    const category = pendingNewItems.get(
+    interaction.user.id
+);
 
     if (!category) {
 
@@ -651,7 +654,9 @@ if (interaction.customId === 'new_item') {
         category
     });
 
-    pendingCategoryAdds.delete(interaction.user.id);
+    pendingNewItems.delete(
+    interaction.user.id
+);
 
     await safeReply(interaction, {
         content: `✅ Objet créé : **${itemName}**`,
@@ -938,7 +943,10 @@ if (interaction.customId === 'new_item_category_select') {
 
     const category = interaction.values[0];
 
-    pendingCategoryAdds.set(interaction.user.id, category);
+    pendingNewItems.set(
+        interaction.user.id,
+        category
+    );
 
     const modal = new ModalBuilder()
         .setCustomId('new_item_modal')
