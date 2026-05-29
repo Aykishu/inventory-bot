@@ -680,6 +680,9 @@ if (interaction.customId === 'new_item') {
 
 if (interaction.customId === 'remove_stock_quantity_modal') {
 
+	const raison =
+    interaction.fields.getTextInputValue('raison') || 'Non renseignée';
+
     const quantite = Number(
         interaction.fields.getTextInputValue('quantite')
     );
@@ -743,6 +746,7 @@ if (interaction.customId === 'remove_stock_quantity_modal') {
 📦 Item : **${objet}**
 ➖ Quantité retirée : **${quantite}**
 📂 Catégorie : **${categories[category]}**
+📝 Raison : **${raison}**
 📉 Stock restant : **${item.quantity}**
 `)
         .setColor('Red');
@@ -828,6 +832,9 @@ if (interaction.customId === 'remove_stock_quantity_modal') {
 
 if (interaction.customId === 'add_stock_quantity_modal') {
 
+	const raison =
+    interaction.fields.getTextInputValue('raison') || 'Non renseignée';
+	
     const quantite = Number(
         interaction.fields.getTextInputValue('quantite')
     );
@@ -883,6 +890,7 @@ if (interaction.customId === 'add_stock_quantity_modal') {
 📦 Item : **${objet}**
 ➕ Quantité : **${quantite}**
 📂 Catégorie : **${categories[category]}**
+📝 Raison : **${raison}**
 📈 Stock restant : **${item.quantity}**
 `)
         .setColor('Green');
@@ -1028,9 +1036,16 @@ if (interaction.customId === 'add_item_select') {
         .setStyle(TextInputStyle.Short)
         .setRequired(true);
 
+	const reasonInput = new TextInputBuilder()
+		.setCustomId('raison')
+		.setLabel('Raison (facultatif)')
+		.setStyle(TextInputStyle.Paragraph)
+		.setRequired(false);
+
     modal.addComponents(
-        new ActionRowBuilder().addComponents(quantityInput)
-    );
+		new ActionRowBuilder().addComponents(quantityInput),
+		new ActionRowBuilder().addComponents(reasonInput)
+	);
 
     return interaction.showModal(modal);
 }
@@ -1098,9 +1113,16 @@ if (interaction.customId === 'remove_item_select') {
         .setStyle(TextInputStyle.Short)
         .setRequired(true);
 
+	const reasonInput = new TextInputBuilder()
+		.setCustomId('raison')
+		.setLabel('Raison (facultatif)')
+		.setStyle(TextInputStyle.Paragraph)
+		.setRequired(false);
+
     modal.addComponents(
-        new ActionRowBuilder().addComponents(quantityInput)
-    );
+		new ActionRowBuilder().addComponents(quantityInput),
+		new ActionRowBuilder().addComponents(reasonInput)
+	);
 
     return await interaction.showModal(modal);
 }
