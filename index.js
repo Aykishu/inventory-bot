@@ -105,7 +105,7 @@ const Stock = mongoose.model('Stock', stockSchema);
 const categories = {
 
     ressources: '🔨 Ressources',
-	ressources_rares: ' Ressources rares',
+	ressources_rares: '💎 Ressources rares',
 	rack: '🗄️ Rack',
     medical: '💊 Médical',
 	hazmat: '☣️ Hazmat',
@@ -338,7 +338,7 @@ function createCategoryMenu(customId = 'category_select') {
                     },
 
                     {
-                        label: 'Ressources rares',
+                        label: '💎 Ressources rares',
                         value: 'ressources_rares',
                         emoji: '💎'
                     },
@@ -522,7 +522,6 @@ for (const category in grouped) {
                     embeds: [embed],
                     components: [
                         ...createButtons(),
-                        createCategoryMenu()
                     ]
                 });
             }
