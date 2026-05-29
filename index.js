@@ -110,6 +110,7 @@ const categories = {
     medical: '💊 Médical',
 	hazmat: '☣️ Hazmat',
     armurerie: '🔫 Armurerie',
+	munitions: '💥 Munitions',
     vehicules: '🚗 Véhicules',
     nourriture: '🍔 Nourriture',
     divers: '📦 Divers'
