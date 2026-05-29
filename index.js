@@ -308,7 +308,7 @@ function createButtons() {
                     .setStyle(ButtonStyle.Danger),
 
 
-            )
+            ),
 
     ];
 
