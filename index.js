@@ -117,6 +117,19 @@ const categories = {
 
 };
 
+const categoryOrder = [
+    'ressources',
+    'ressources_rares',
+    'rack',
+    'medical',
+    'hazmat',
+    'armurerie',
+	'munitions',
+    'vehicules',
+    'nourriture',
+    'divers'
+];
+
 // ================= ITEM EMOJIS =================
 
 function getItemEmoji(itemName) {
@@ -434,10 +447,19 @@ client.on('interactionCreate', async interaction => {
 
             if (interaction.customId === 'view_stock') {
 
-                const rows = await Stock.find().sort({
-                    category: 1,
-                    item: 1
-                });
+				const rows = await Stock.find();
+
+rows.sort((a, b) => {
+
+    const categoryA = categoryOrder.indexOf(a.category);
+    const categoryB = categoryOrder.indexOf(b.category);
+
+    if (categoryA !== categoryB) {
+        return categoryA - categoryB;
+    }
+
+    return a.item.localeCompare(b.item);
+});
 
                 if (rows.length === 0) {
                     return safeReply(interaction, {
