@@ -556,9 +556,9 @@ for (const slot of slots) {
 	await sharp(slotFile)
 		.extract({
 		left: 0,
-		top: 82,
+		top: 78,
 		width: 110,
-		height: 35
+		height: 25
 })
 .toFile(textFile);
 
@@ -577,32 +577,30 @@ for (const slot of slots) {
 
     // découpe quantité
 
-	// const quantityFile =
-	//	`./qty_${index}.png`;
+	 const quantityFile =
+		`./qty_${index}.png`;
 
 
-	// await sharp(slotFile)
-	//	.extract({
-	//	left: 50,
-	//	top: 0,
-	//	width: 35,
-	//	height: 18
-// })
-	//	.resize(300, 120)
-	//	.grayscale()
-	//	.normalize()
-	//	.sharpen()
-	//	.toFile(quantityFile);
+	 await sharp(slotFile)
+		.extract({
+		left: 50,
+		top: 0,
+		width: 35,
+		height: 18
+ })
+		.resize(300, 120)
+		.grayscale()
+		.normalize()
+		.sharpen()
+		.toFile(quantityFile);
 
 
-    //const quantity =
-    //    await detectQuantity(
-    //        quantityFile
-    //    );
+    const quantity =
+        await detectQuantity(
+            quantityFile
+        );
 
-	//console.log('QUANTITY OCR:', quantity);
-
-	const quantity = 1;
+	console.log('QUANTITY OCR:', quantity);
 
     // skip slot vide
 
