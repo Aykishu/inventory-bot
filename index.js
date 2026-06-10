@@ -541,6 +541,7 @@ for (const slot of slots) {
             height: 110
         })
         .toFile(slotFile);
+		console.log(`SLOT ${index} SAVED`);
 
 // découpe texte item
 
@@ -567,7 +568,8 @@ for (const slot of slots) {
 		.toLowerCase()
 		.replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '')
 		.trim();
-
+		
+	console.log('ITEM OCR:', item);
 
     // découpe quantité
 
@@ -588,6 +590,8 @@ for (const slot of slots) {
         await detectQuantity(
             quantityFile
         );
+
+	console.log('QUANTITY OCR:', quantity);
 
     // skip slot vide
 
