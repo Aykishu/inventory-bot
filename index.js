@@ -22,8 +22,6 @@ const sharp = require('sharp');
 const axios = require('axios');
 const fs = require('fs');
 const Tesseract = require('tesseract.js');
-const pixelmatch = require('pixelmatch');
-const { PNG } = require('pngjs');
 
 // ================= EXPRESS =================
 
@@ -176,73 +174,6 @@ const pendingCategoryRemoves = new Map();
 const pendingItemRemoves = new Map();
 const pendingNewItems = new Map();
 
-async function compareImages(img1Path, img2Path) {
-
-    const img1 = PNG.sync.read(
-        fs.readFileSync(img1Path)
-    );
-
-    const img2 = PNG.sync.read(
-        fs.readFileSync(img2Path)
-    );
-
-    const {
-        width,
-        height
-    } = img1;
-
-    const diff = new PNG({
-        width,
-        height
-    });
-
-    const mismatched = pixelmatch(
-        img1.data,
-        img2.data,
-        diff.data,
-        width,
-        height,
-        {
-            threshold: 0.1
-        }
-    );
-
-    return mismatched;
-}
-
-async function detectItem(iconPath) {
-
-    const templates =
-        fs.readdirSync('./templates');
-
-    let bestMatch = null;
-
-    let lowestDiff = Infinity;
-
-    for (const template of templates) {
-
-        const diff =
-            await compareImages(
-                iconPath,
-                `./templates/${template}`
-            );
-
-        if (diff < lowestDiff) {
-
-            lowestDiff = diff;
-
-            bestMatch = template;
-        }
-    }
-
-    if (!bestMatch)
-        return null;
-
-    return bestMatch
-        .replace('.png', '')
-        .replace(/_/g, ' ');
-}
-
 async function detectQuantity(imagePath) {
 
     const result =
@@ -261,6 +192,23 @@ async function detectQuantity(imagePath) {
         ? Number(match[1])
         : 0;
 }
+
+async function detectText(imagePath) {
+
+
+const result =
+    await Tesseract.recognize(
+        imagePath,
+        'fra'
+    );
+
+return result.data.text
+    .replace(/\n/g, ' ')
+    .trim();
+
+
+}
+
 
 // ================= SAFE FUNCTIONS =================
 
@@ -594,30 +542,38 @@ for (const slot of slots) {
         })
         .toFile(slotFile);
 
-    // découpe icône
+// découpe texte item
 
-    const iconFile =
-        `./icon_${index}.png`;
+	const textFile =
+		`./text_${index}.png`;
 
-    await sharp(slotFile)
-        .extract({
-            left: 10,
-            top: 15,
-            width: 70,
-            height: 70
-        })
-        .resize(64, 64)
-        .toFile(iconFile);
 
-    // détecte item
+	await sharp(slotFile)
+		.extract({
+		left: 0,
+		top: 75,
+		width: 110,
+		height: 35
+})
+.toFile(textFile);
 
-    const item =
-        await detectItem(iconFile);
+// OCR texte
+
+	const rawText =
+	
+	await detectText(textFile);
+
+	const item = rawText
+		.toLowerCase()
+		.replace(/[^a-zA-ZÀ-ÿ0-9 ]/g, '')
+		.trim();
+
 
     // découpe quantité
 
-    const quantityFile =
-        `./qty_${index}.png`;
+	const quantityFile =
+		`./qty_${index}.png`;
+
 
     await sharp(slotFile)
         .extract({
