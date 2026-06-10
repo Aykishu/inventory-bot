@@ -541,7 +541,7 @@ for (const slot of slots) {
         .extract({
             left: slot.x,
             top: slot.y,
-            width: 118,
+            width: 110,
             height: 110
         })
         .toFile(slotFile);
@@ -581,12 +581,12 @@ for (const slot of slots) {
 		`./qty_${index}.png`;
 
 
-    await sharp(slotFile)
+	await sharp(slotFile)
 		.extract({
-		left: 72,
-		top: 2,
-		width: 42,
-		height: 20
+		left: 50,
+		top: 0,
+		width: 35,
+		height: 18
 })
 		.resize(300, 120)
 		.grayscale()
