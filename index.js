@@ -298,7 +298,7 @@ const commands = [
 
     new SlashCommandBuilder()
         .setName('inventaire')
-        .setDescription('Ouvrir le panel inventaire')
+        .setDescription('Ouvrir le panel inventaire'),
 		
 	new SlashCommandBuilder()
 		.setName('scanstock')
