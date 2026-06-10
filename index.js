@@ -18,6 +18,12 @@ const {
 
 const express = require('express');
 const mongoose = require('mongoose');
+const sharp = require('sharp');
+const axios = require('axios');
+const fs = require('fs');
+const Tesseract = require('tesseract.js');
+const pixelmatch = require('pixelmatch');
+const { PNG } = require('pngjs');
 
 // ================= EXPRESS =================
 
@@ -155,6 +161,12 @@ function getItemEmoji(itemName) {
     return '📦';
 }
 
+	const slots = [
+
+		{ x: 0, y: 0 },
+
+];
+
 // ================= TEMP STORAGE =================
 
 const pendingAdds = new Map();
@@ -163,6 +175,92 @@ const pendingItemAdds = new Map();
 const pendingCategoryRemoves = new Map();
 const pendingItemRemoves = new Map();
 const pendingNewItems = new Map();
+
+async function compareImages(img1Path, img2Path) {
+
+    const img1 = PNG.sync.read(
+        fs.readFileSync(img1Path)
+    );
+
+    const img2 = PNG.sync.read(
+        fs.readFileSync(img2Path)
+    );
+
+    const {
+        width,
+        height
+    } = img1;
+
+    const diff = new PNG({
+        width,
+        height
+    });
+
+    const mismatched = pixelmatch(
+        img1.data,
+        img2.data,
+        diff.data,
+        width,
+        height,
+        {
+            threshold: 0.1
+        }
+    );
+
+    return mismatched;
+}
+
+async function detectItem(iconPath) {
+
+    const templates =
+        fs.readdirSync('./templates');
+
+    let bestMatch = null;
+
+    let lowestDiff = Infinity;
+
+    for (const template of templates) {
+
+        const diff =
+            await compareImages(
+                iconPath,
+                `./templates/${template}`
+            );
+
+        if (diff < lowestDiff) {
+
+            lowestDiff = diff;
+
+            bestMatch = template;
+        }
+    }
+
+    if (!bestMatch)
+        return null;
+
+    return bestMatch
+        .replace('.png', '')
+        .replace(/_/g, ' ');
+}
+
+async function detectQuantity(imagePath) {
+
+    const result =
+        await Tesseract.recognize(
+            imagePath,
+            'eng'
+        );
+
+    const text =
+        result.data.text;
+
+    const match =
+        text.match(/(\d+)/);
+
+    return match
+        ? Number(match[1])
+        : 0;
+}
 
 // ================= SAFE FUNCTIONS =================
 
@@ -201,6 +299,16 @@ const commands = [
     new SlashCommandBuilder()
         .setName('inventaire')
         .setDescription('Ouvrir le panel inventaire')
+		
+	new SlashCommandBuilder()
+		.setName('scanstock')
+		.setDescription('Scanner un inventaire')
+		.addAttachmentOption(option =>
+        option
+            .setName('image')
+            .setDescription('Capture écran')
+            .setRequired(true)
+    ),
 
 ].map(command => command.toJSON());
 
@@ -443,6 +551,124 @@ client.on('interactionCreate', async interaction => {
                     ]
                 });
             }
+			
+			if (interaction.commandName === 'scanstock') {
+				
+				const attachment =
+    interaction.options.getAttachment('image');
+
+await interaction.deferReply({
+    flags: 64
+});
+
+const response =
+    await axios.get(
+        attachment.url,
+        {
+            responseType: 'arraybuffer'
+        }
+    );
+
+fs.writeFileSync(
+    './inventory.png',
+    response.data
+);
+
+const results = [];
+
+let index = 0;
+
+for (const slot of slots) {
+
+    const slotFile =
+        `./slot_${index}.png`;
+
+    // découpe slot
+
+    await sharp('./inventory.png')
+        .extract({
+            left: slot.x,
+            top: slot.y,
+            width: 110,
+            height: 110
+        })
+        .toFile(slotFile);
+
+    // découpe icône
+
+    const iconFile =
+        `./icon_${index}.png`;
+
+    await sharp(slotFile)
+        .extract({
+            left: 10,
+            top: 15,
+            width: 70,
+            height: 70
+        })
+        .resize(64, 64)
+        .toFile(iconFile);
+
+    // détecte item
+
+    const item =
+        await detectItem(iconFile);
+
+    // découpe quantité
+
+    const quantityFile =
+        `./qty_${index}.png`;
+
+    await sharp(slotFile)
+        .extract({
+            left: 55,
+            top: 0,
+            width: 50,
+            height: 25
+        })
+        .toFile(quantityFile);
+
+    const quantity =
+        await detectQuantity(
+            quantityFile
+        );
+
+    // skip slot vide
+
+    if (!item || quantity <= 0) {
+
+        index++;
+        continue;
+    }
+
+    // update mongodb
+
+    await Stock.findOneAndUpdate(
+        {
+            item: item
+        },
+        {
+            quantity: quantity
+        },
+        {
+            upsert: true
+        }
+    );
+
+    results.push(
+        `📦 ${item} → ${quantity}`
+    );
+
+    index++;
+}
+
+await interaction.editReply({
+    content:
+`✅ Scan terminé
+
+${results.join('\n')}`
+});
+}
         }
 
         // ================= BUTTONS =================
