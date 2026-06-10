@@ -161,9 +161,34 @@ function getItemEmoji(itemName) {
 
 	const slots = [
 
-		{ x: 0, y: 0 },
+
+// ===== LIGNE 1 =====
+
+	{ x: 0, y: 0 },
+	{ x: 119, y: 0 },
+	{ x: 238, y: 0 },
+	{ x: 357, y: 0 },
+	{ x: 476, y: 0 },
+
+// ===== LIGNE 2 =====
+
+	{ x: 0, y: 111 },
+	{ x: 119, y: 111 },
+	{ x: 238, y: 111 },
+	{ x: 357, y: 111 },
+	{ x: 476, y: 111 },
+
+// ===== LIGNE 3 =====
+
+	{ x: 0, y: 222 },
+	{ x: 119, y: 222 },
+	{ x: 238, y: 222 },
+	{ x: 357, y: 222 },
+	{ x: 476, y: 222 }
+
 
 ];
+
 
 // ================= TEMP STORAGE =================
 
@@ -537,7 +562,7 @@ for (const slot of slots) {
         .extract({
             left: slot.x,
             top: slot.y,
-            width: 110,
+            width: 118,
             height: 110
         })
         .toFile(slotFile);
@@ -552,7 +577,7 @@ for (const slot of slots) {
 	await sharp(slotFile)
 		.extract({
 		left: 0,
-		top: 75,
+		top: 82,
 		width: 110,
 		height: 35
 })
@@ -578,13 +603,18 @@ for (const slot of slots) {
 
 
     await sharp(slotFile)
-        .extract({
-            left: 55,
-            top: 0,
-            width: 50,
-            height: 25
-        })
-        .toFile(quantityFile);
+		.extract({
+		left: 72,
+		top: 2,
+		width: 42,
+		height: 20
+})
+		.resize(300, 120)
+		.grayscale()
+		.normalize()
+		.sharpen()
+		.toFile(quantityFile);
+
 
     const quantity =
         await detectQuantity(
