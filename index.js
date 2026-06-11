@@ -599,7 +599,8 @@ console.log("TEXT FILE:", textFile);
 		`./qty_${index}.png`;
 
 
-	.extract({
+	await sharp(slotFile)
+    .extract({
     left: 82,
     top: 10,
     width: 28,
