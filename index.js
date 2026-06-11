@@ -603,7 +603,7 @@ console.log("TEXT FILE:", textFile);
     .extract({
         left: 92,
         top: 8,
-        width: 20,
+        width: 18,
         height: 14
     })
     .resize(500, 300)
