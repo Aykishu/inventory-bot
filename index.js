@@ -565,9 +565,9 @@ await interaction.followUp({
 	await sharp(slotFile)
 		.extract({
 		left: 0,
-		top: 78,
+		top: 82,
 		width: 110,
-		height: 25
+		height: 28
 })
 .toFile(textFile);
 const meta = await sharp(slotFile).metadata();
@@ -600,17 +600,17 @@ console.log("TEXT FILE:", textFile);
 
 
 	await sharp(slotFile)
-		.extract({
-			left: 82,
-			top: 0,
-			width: 24,
-			height: 16
+    .extract({
+        left: 84,
+        top: 4,
+        width: 18,
+        height: 12
     })
-		.resize(400, 200)
-		.grayscale()
-		.normalize()
-		.sharpen()
-		.toFile(quantityFile);
+    .resize(500, 300)
+    .grayscale()
+    .normalize()
+    .sharpen()
+    .toFile(quantityFile);
 		
 await interaction.followUp({
     content: "Debug quantité",
