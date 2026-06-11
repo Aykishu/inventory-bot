@@ -601,10 +601,10 @@ console.log("TEXT FILE:", textFile);
 
 	await sharp(slotFile)
     .extract({
-        left: 84,
-        top: 4,
-        width: 18,
-        height: 12
+        left: 92,
+        top: 8,
+        width: 20,
+        height: 14
     })
     .resize(500, 300)
     .grayscale()
