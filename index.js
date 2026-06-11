@@ -594,14 +594,14 @@ console.log("TEXT FILE:", textFile);
 		`./qty_${index}.png`;
 
 
-	 await sharp(slotFile)
+	await sharp(slotFile)
 		.extract({
-		left: 50,
-		top: 0,
-		width: 35,
-		height: 18
- })
-		.resize(300, 120)
+			left: 78,
+			top: 2,
+			width: 28,
+			height: 16
+    })
+		.resize(400, 200)
 		.grayscale()
 		.normalize()
 		.sharpen()
