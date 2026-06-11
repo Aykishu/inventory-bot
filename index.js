@@ -182,9 +182,12 @@ async function detectQuantity(imagePath) {
 
     const result =
         await Tesseract.recognize(
-            imagePath,
-            'eng'
-        );
+    imagePath,
+    'eng',
+    {
+        tessedit_char_whitelist: '0123456789xX'
+    }
+);
 
     const text =
         result.data.text;
@@ -567,6 +570,8 @@ await interaction.followUp({
 		height: 25
 })
 .toFile(textFile);
+const meta = await sharp(slotFile).metadata();
+console.log(meta);
 
 await interaction.followUp({
     content: "Debug texte",
@@ -596,9 +601,9 @@ console.log("TEXT FILE:", textFile);
 
 	await sharp(slotFile)
 		.extract({
-			left: 78,
-			top: 2,
-			width: 28,
+			left: 82,
+			top: 0,
+			width: 24,
 			height: 16
     })
 		.resize(400, 200)
@@ -606,6 +611,9 @@ console.log("TEXT FILE:", textFile);
 		.normalize()
 		.sharpen()
 		.toFile(quantityFile);
+		
+const meta = await sharp(slotFile).metadata();
+console.log(meta);
 
 await interaction.followUp({
     content: "Debug quantité",
