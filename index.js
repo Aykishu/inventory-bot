@@ -581,9 +581,9 @@ await interaction.followUp({
 	await sharp(slotFile)
     .extract({
         left: 0,
-        top: 80,
+        top: 76,
         width: 117,
-        height: 24
+        height: 30
     })
     .toFile(textFile);
 const meta = await sharp(slotFile).metadata();
