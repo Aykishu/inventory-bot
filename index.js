@@ -580,11 +580,16 @@ await interaction.followUp({
 	await sharp(slotFile)
     .extract({
         left: 0,
-        top: 76,
+        top: 74,
         width: 117,
-        height: 30
+        height: 34
     })
+    .resize(500, 150)
+    .grayscale()
+    .normalize()
+    .sharpen()
     .toFile(textFile);
+
 const meta = await sharp(slotFile).metadata();
 console.log(meta);
 
