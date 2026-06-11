@@ -617,7 +617,7 @@ console.log("TEXT FILE:", textFile);
 
 	await sharp(slotFile)
     .extract({
-        left: 72,
+        left: 66,
         top: 3,
         width: 40,
         height: 22
