@@ -218,18 +218,17 @@ async function detectQuantity(imagePath) {
 
 async function detectText(imagePath) {
 
+    const result =
+        await Tesseract.recognize(
+            imagePath,
+            'fra'
+        );
 
-const result =
-    await Tesseract.recognize(
-        imagePath,
-        'fra'
-    );
+    console.log("RAW OCR:", result.data.text);
 
-return result.data.text
-    .replace(/\n/g, ' ')
-    .trim();
-
-
+    return result.data.text
+        .replace(/\n/g, ' ')
+        .trim();
 }
 
 
