@@ -599,18 +599,17 @@ console.log("TEXT FILE:", textFile);
 		`./qty_${index}.png`;
 
 
-	await sharp(slotFile)
-    .extract({
-        left: 92,
-        top: 8,
-        width: 18,
-        height: 14
-    })
-    .resize(500, 300)
-    .grayscale()
-    .normalize()
-    .sharpen()
-    .toFile(quantityFile);
+	.extract({
+    left: 82,
+    top: 10,
+    width: 28,
+    height: 18
+})
+.resize(250, 120)
+.grayscale()
+.normalize()
+.sharpen()
+.toFile(quantityFile);
 		
 await interaction.followUp({
     content: "Debug quantité",
