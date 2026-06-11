@@ -612,9 +612,6 @@ console.log("TEXT FILE:", textFile);
 		.sharpen()
 		.toFile(quantityFile);
 		
-const meta = await sharp(slotFile).metadata();
-console.log(meta);
-
 await interaction.followUp({
     content: "Debug quantité",
     files: [quantityFile],
