@@ -562,6 +562,13 @@ for (const slot of slots) {
 })
 .toFile(textFile);
 
+await interaction.followUp({
+    content: "Debug texte",
+    files: [textFile],
+    flags: 64
+});
+
+console.log("TEXT FILE:", textFile);
 // OCR texte
 
 	const rawText =
@@ -594,6 +601,11 @@ for (const slot of slots) {
 		.sharpen()
 		.toFile(quantityFile);
 
+await interaction.followUp({
+    content: "Debug quantité",
+    files: [quantityFile],
+    flags: 64
+});
 
     const quantity =
         await detectQuantity(
@@ -601,7 +613,7 @@ for (const slot of slots) {
         );
 
 	console.log('QUANTITY OCR:', quantity);
-
+	console.log("QTY FILE:", quantityFile);
     // skip slot vide
 
     if (!item || quantity <= 0) {
