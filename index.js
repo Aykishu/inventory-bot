@@ -547,6 +547,12 @@ for (const slot of slots) {
         .toFile(slotFile);
 		console.log(`SLOT ${index} SAVED`);
 
+await interaction.followUp({
+    content: "Debug slot",
+    files: [slotFile],
+    flags: 64
+});
+
 // découpe texte item
 
 	const textFile =
