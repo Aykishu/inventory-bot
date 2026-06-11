@@ -159,31 +159,28 @@ function getItemEmoji(itemName) {
     return '📦';
 }
 
-	const slots = [
+const slots = [
 
-	// Ligne 1
-
+    // Ligne 1
     { x: 0, y: 0 },
-    { x: 119, y: 0 },
-    { x: 238, y: 0 },
-    { x: 357, y: 0 },
-    { x: 476, y: 0 },
+//    { x: 117, y: 0 },
+//    { x: 234, y: 0 },
+//    { x: 351, y: 0 },
+//    { x: 468, y: 0 },
 
-	// Ligne 2
+    // Ligne 2
+//    { x: 0, y: 108 },
+//    { x: 117, y: 108 },
+//    { x: 234, y: 108 },
+//    { x: 351, y: 108 },
+//    { x: 468, y: 108 },
 
-    { x: 0, y: 111 },
-    { x: 119, y: 111 },
-    { x: 238, y: 111 },
-    { x: 357, y: 111 },
-    { x: 476, y: 111 },
-
-	// Ligne 3
-
-    { x: 0, y: 222 },
-    { x: 119, y: 222 },
-    { x: 238, y: 222 },
-    { x: 357, y: 222 },
-    { x: 476, y: 222 }
+    // Ligne 3
+//    { x: 0, y: 216 },
+//    { x: 117, y: 216 },
+//    { x: 234, y: 216 },
+//    { x: 351, y: 216 },
+//    { x: 468, y: 216 }
 
 ];
 
@@ -563,8 +560,8 @@ for (const slot of slots) {
         .extract({
             left: slot.x,
             top: slot.y,
-            width: 110,
-            height: 110
+            width: 117,
+			height: 108
         })
         .toFile(slotFile);
 		console.log(`SLOT ${index} SAVED`);
@@ -582,13 +579,13 @@ await interaction.followUp({
 
 
 	await sharp(slotFile)
-		.extract({
-		left: 0,
-		top: 82,
-		width: 110,
-		height: 28
-})
-.toFile(textFile);
+    .extract({
+        left: 0,
+        top: 80,
+        width: 117,
+        height: 24
+    })
+    .toFile(textFile);
 const meta = await sharp(slotFile).metadata();
 console.log(meta);
 
@@ -620,16 +617,16 @@ console.log("TEXT FILE:", textFile);
 
 	await sharp(slotFile)
     .extract({
-    left: 82,
-    top: 10,
-    width: 28,
-    height: 18
-})
-.resize(250, 120)
-.grayscale()
-.normalize()
-.sharpen()
-.toFile(quantityFile);
+        left: 72,
+        top: 0,
+        width: 40,
+        height: 22
+    })
+    .resize(250, 120)
+    .grayscale()
+    .normalize()
+    .sharpen()
+    .toFile(quantityFile);
 		
 await interaction.followUp({
     content: "Debug quantité",
