@@ -579,11 +579,11 @@ await interaction.followUp({
 
 	await sharp(slotFile)
     .extract({
-        left: 0,
-        top: 72,
-        width: 117,
-        height: 32
-    })
+    left: 0,
+    top: 78,
+    width: 117,
+    height: 28
+})
     .resize(800, 250)
     .grayscale()
     .normalize()
