@@ -733,7 +733,7 @@ let description = '';
 for (const category in grouped) {
 
     description += `\n━━━━━━━━━━━━━━\n`;
-    description += `${categories[category].toUpperCase()}\n`;
+    description += `${(categories[category] || category).toUpperCase()}\n`;
     description += `━━━━━━━━━━━━━━\n`;
 
     grouped[category].forEach(item => {
