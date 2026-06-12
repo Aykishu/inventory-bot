@@ -580,14 +580,15 @@ await interaction.followUp({
 	await sharp(slotFile)
     .extract({
         left: 0,
-        top: 84,
+        top: 72,
         width: 117,
-        height: 18
+        height: 32
     })
-    .resize(400, 120)
+    .resize(800, 250)
     .grayscale()
     .normalize()
-    .sharpen()
+    .sharpen({
+    })
     .toFile(textFile);
 
 const meta = await sharp(slotFile).metadata();
@@ -733,7 +734,7 @@ let description = '';
 for (const category in grouped) {
 
     description += `\n━━━━━━━━━━━━━━\n`;
-    description += `${(categories[category] || category).toUpperCase()}\n`;
+    description += `${categories[category].toUpperCase()}\n`;
     description += `━━━━━━━━━━━━━━\n`;
 
     grouped[category].forEach(item => {
