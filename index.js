@@ -588,7 +588,6 @@ await interaction.followUp({
     .grayscale()
     .normalize()
     .sharpen()
-    })
     .toFile(textFile);
 
 const meta = await sharp(slotFile).metadata();
