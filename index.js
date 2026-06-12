@@ -587,7 +587,7 @@ await interaction.followUp({
     .resize(800, 250)
     .grayscale()
     .normalize()
-    .sharpen({
+    .sharpen()
     })
     .toFile(textFile);
 
